@@ -781,3 +781,109 @@ alter table public.client_submissions
 -- Existing submission RLS continues to apply:
 -- linked employer can edit when portal_permission = 'edit';
 -- admin can read employer submissions.
+
+
+-- ============================================================
+-- Professional Task CRM permissions + notifications
+-- ============================================================
+
+alter table public.client_tasks
+  add column if not exists admin_seen_at timestamptz;
+
+-- Employer is allowed to change their own project status only while linked.
+-- RLS cannot restrict columns by itself, so use a trigger to enforce allowed
+-- Employer changes to project status.
+create or replace function public.guard_employer_client_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.is_admin() then
+    return new;
+  end if;
+
+  if old.auth_user_id = auth.uid() then
+    -- Employer may only change status. All other protected fields must remain the same.
+    if new.name is distinct from old.name
+       or new.company is distinct from old.company
+       or new.email is distinct from old.email
+       or new.phone is distinct from old.phone
+       or new.website is distinct from old.website
+       or new.project_type is distinct from old.project_type
+       or new.priority is distinct from old.priority
+       or new.start_date is distinct from old.start_date
+       or new.deadline is distinct from old.deadline
+       or new.completed_date is distinct from old.completed_date
+       or new.budget is distinct from old.budget
+       or new.overview is distinct from old.overview
+       or new.hosting is distinct from old.hosting
+       or new.stack is distinct from old.stack
+       or new.registrar is distinct from old.registrar
+       or new.contact is distinct from old.contact
+       or new.deliverables is distinct from old.deliverables
+       or new.notes is distinct from old.notes
+       or new.tags is distinct from old.tags
+       or new.deleted_at is distinct from old.deleted_at
+       or new.client_username is distinct from old.client_username
+       or new.portal_permission is distinct from old.portal_permission
+       or new.auth_user_id is distinct from old.auth_user_id
+       or new.login_email is distinct from old.login_email then
+      raise exception 'Employer may only change project status.';
+    end if;
+
+    if new.status not in ('ongoing','paused','complete') then
+      raise exception 'Invalid employer project status.';
+    end if;
+
+    return new;
+  end if;
+
+  raise exception 'Client update not permitted.';
+end;
+$$;
+
+drop trigger if exists guard_employer_client_update_trigger on public.clients;
+create trigger guard_employer_client_update_trigger
+before update on public.clients
+for each row execute procedure public.guard_employer_client_update();
+
+-- Give linked Employer UPDATE permission to their own client row.
+drop policy if exists "clients_employer_update_status" on public.clients;
+create policy "clients_employer_update_status"
+on public.clients for update
+to authenticated
+using (auth_user_id = auth.uid() and deleted_at is null)
+with check (auth_user_id = auth.uid() and deleted_at is null);
+
+-- Admin may mark a task seen and change only done/admin_seen_at.
+create or replace function public.guard_admin_task_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.is_admin() then
+    if new.task is distinct from old.task
+       or new.details is distinct from old.details
+       or new.priority is distinct from old.priority
+       or new.due_date is distinct from old.due_date
+       or new.client_id is distinct from old.client_id
+       or new.user_id is distinct from old.user_id
+       or new.created_at is distinct from old.created_at then
+      raise exception 'Admin cannot edit Employer task content.';
+    end if;
+    return new;
+  end if;
+
+  -- Employer retains existing task edit rights through RLS.
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_admin_task_update_trigger on public.client_tasks;
+create trigger guard_admin_task_update_trigger
+before update on public.client_tasks
+for each row execute procedure public.guard_admin_task_update();

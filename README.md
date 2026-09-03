@@ -592,3 +592,166 @@ This adds:
 - `client_submissions.shared_notes`
 
 No new Employer username/password is required.
+
+
+## Employer routing fix
+
+This build fixes an Employer account incorrectly seeing the Admin Dashboard after login/refresh.
+
+Changes:
+- Dashboard is no longer active by default in the HTML.
+- Employer portal rendering is awaited before the loading shield is removed.
+- Employer sessions do not render Admin dashboard widgets.
+- If an Employer portal query fails, the app remains on an Employer-only error page instead of falling back to Admin Dashboard.
+
+No SQL update is required for this routing-only fix.
+
+
+## Employer Work Status Monitor
+
+Employer Portal now includes a **Work Monitor** page.
+
+The employer can see:
+
+- whether the VA is currently working or signed out
+- a live running timer while the VA has an active Login/Start session
+- current task
+- start time
+- total work time Today
+- total work time This Week
+- total work time This Month
+- recent work sessions
+- completed vs active work sessions
+
+The Employer only sees time entries connected to their own project/client record.
+
+Manual hours entries also appear in the employer work history and are included in day/week/month totals.
+
+No new SQL migration is required because this uses the existing `time_entries` table and existing employer read policy.
+
+
+# Professional Task CRM Upgrade
+
+## Long tasks
+Long task instructions are collapsed by default.
+Use **View details** to expand the full task, and **Show less** to collapse it.
+
+## Employer task ownership
+Employer can:
+- create tasks
+- edit title
+- edit instructions/details
+- edit priority
+- edit due date
+- set project status: Active, Paused, Complete
+
+Admin / VA can:
+- view Employer task content
+- receive Task Inbox notifications
+- mark task Completed
+- reopen a completed task
+
+Admin cannot edit Employer task title/details/priority/due date. This is enforced by a database trigger, not just the UI.
+
+## Task Inbox / notifications
+Admin sidebar now includes **Task Inbox** with an unread badge.
+New Employer-created requests appear there.
+Opening a task marks it seen.
+Tasks can be filtered by:
+- All
+- Unread
+- Open
+- Completed
+
+## SQL migration required
+Run the latest `supabase-schema.sql` in Supabase SQL Editor.
+
+This adds:
+- `client_tasks.admin_seen_at`
+- Employer project-status update policy
+- database guards that prevent Admin from editing Employer task content
+- database guards that limit Employer project changes to status only
+
+
+# Multi-client Workflow + Compact Employer Tasks
+
+## Invoice view
+The professional invoice preview shown in the Employer portal is intended for the Employer/Client-facing side. Admin creates invoices; Employer views incoming/paid invoices.
+
+## Compact tasks
+Long task content is collapsed by default in:
+- Employer Overview / Tasks you've sent
+- Employer Tasks tab
+
+Use:
+- **See more**
+- **See less**
+
+This keeps long instructions from taking over the page.
+
+## Floating work status
+Employer now always sees a small floating status:
+- VA Working Now
+- VA Offline
+- live timer
+- current task
+
+Click **View** to open Work Monitor.
+
+## Multi-client Admin timers
+Admin can now keep separate active work sessions for multiple clients.
+
+Workflow:
+1. Select a client.
+2. Enter task.
+3. Login / Start.
+4. Select another client and start another session if needed.
+5. Active Sessions panel shows every running client timer.
+6. Stop each client independently.
+
+This supports multi-client VA work without mixing client time records.
+
+
+## Login null-auth fix
+
+Fixes:
+
+`Cannot read properties of null (reading 'auth')`
+
+The Login button now starts disabled while Supabase initializes. Every authentication action also calls a shared `ensureSupabaseClient()` guard before using `.auth`.
+
+No SQL or Edge Function update is required.
+
+
+## Login CDN loading fix
+
+This version removes the blocking Supabase CDN script from `index.html`.
+
+Previously, if the external CDN was slow or blocked, the browser stopped before loading `app.js`, leaving the Login button permanently at **Connecting...**.
+
+Now:
+- `app.js` loads locally first
+- Login is available immediately
+- Supabase is loaded dynamically when needed
+- jsDelivr is tried first
+- unpkg is used as a fallback
+- each CDN has an 8-second timeout
+- a useful error is shown if both sources fail
+
+No SQL or Edge Function update is required.
+
+
+## Stable login build
+
+This build removes the custom Supabase CDN loader and returns to Supabase's documented browser setup:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+```
+
+The app now:
+- initializes Supabase directly from the documented browser global
+- shows the exact initialization/authentication error
+- loads the workspace immediately after successful password authentication instead of depending only on the auth-state callback
+
+No SQL or Edge Function change is required.
