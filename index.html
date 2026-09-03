@@ -3,7 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#07100b">
+  <meta name="theme-color" content="#07110c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Jeffdesign101">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="Jeffdesign101 secure VA workspace for employers, tasks, time tracking, files and billing.">
   <title>Jeffdesign101 — VA Workspace</title>
@@ -59,7 +65,7 @@
           <button id="mobileMenuBtn" class="icon-btn mobile-menu-btn" type="button" aria-label="Open navigation" aria-controls="adminSidebar" aria-expanded="false">☰</button>
           <div><small id="workspaceLabel">WORKSPACE</small><h2 id="pageTitle">Dashboard</h2></div>
         </div>
-        <div class="top-actions"><button id="commandBtn" class="icon-btn command-btn" type="button" title="Quick navigation (Ctrl/⌘ K)" aria-label="Open quick navigation">⌘</button><span id="roleBadge" class="role-badge">ADMIN</span><button id="signOutBtn" class="btn ghost">Sign out</button></div>
+        <div class="top-actions"><button id="installAppBtn" class="btn ghost pwa-install-btn hidden" type="button" title="Install Jeffdesign101 on this device">Install App</button><button id="commandBtn" class="icon-btn command-btn" type="button" title="Quick navigation (Ctrl/⌘ K)" aria-label="Open quick navigation">⌘</button><span id="roleBadge" class="role-badge">ADMIN</span><button id="signOutBtn" class="btn ghost">Sign out</button></div>
       </header>
 
       <div id="employerTabs" class="employer-tabs glass hidden">
@@ -129,10 +135,24 @@
     </div>
   </div>
 
+
+  <div id="pwaInstallSheet" class="pwa-install-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="pwaInstallTitle">
+    <section class="pwa-install-card glass">
+      <button id="closePwaInstall" class="icon-btn pwa-close" type="button" aria-label="Close">×</button>
+      <img src="assets/pwa-192.png" class="pwa-app-icon" alt="">
+      <span class="section-label">INSTALL APP</span>
+      <h3 id="pwaInstallTitle">Add Jeffdesign101 to your Home Screen</h3>
+      <p id="pwaInstallInstructions" class="muted">Install this workspace for a faster, app-like experience.</p>
+      <button id="nativeInstallBtn" class="btn primary full hidden" type="button">Install Jeffdesign101</button>
+      <small class="pwa-install-note">Your Supabase data stays online and secured by the same login and database policies.</small>
+    </section>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="config.js?v=clean-v1"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js?v=v2.2-glass"></script>
+  <script src="pwa.js?v=v2.3"></script>
 </body>
 </html>

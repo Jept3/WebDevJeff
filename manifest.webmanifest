@@ -1,0 +1,34 @@
+{
+  "name": "Jeffdesign101 VA Workspace",
+  "short_name": "Jeffdesign101",
+  "description": "Secure VA workspace for employers, tasks, files, work monitoring, and invoices.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#07110c",
+  "theme_color": "#07110c",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "assets/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/pwa-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
