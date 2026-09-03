@@ -595,3 +595,11 @@ body{min-height:100%;overflow-x:hidden;overscroll-behavior-y:auto;touch-action:p
     padding:15px;
   }
 }
+
+
+/* ---------- v2.10 work time editor ---------- */
+.time-edit-modal{width:min(760px,100%);overflow:auto!important;-webkit-overflow-scrolling:touch}
+.time-edit-duration{margin-top:14px;padding:12px 14px;border:1px solid rgba(182,255,47,.16);border-radius:14px;background:rgba(182,255,47,.06);color:#dfffb2;font-weight:800}
+.time-edit-modal .credential-box{margin:0 0 14px}
+.time-edit-modal .credential-box p{margin-bottom:0}
+@media(max-width:620px){.time-edit-modal .form-grid{grid-template-columns:1fr}.time-edit-modal{max-height:calc(100dvh - 16px);padding-bottom:calc(18px + env(safe-area-inset-bottom))}}

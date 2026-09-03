@@ -13,7 +13,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="description" content="Jeffdesign101 secure VA workspace for employers, tasks, time tracking, files and billing.">
   <title>Jeffdesign101 — VA Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=v2.9-admin-task-scroll">
+  <link rel="stylesheet" href="styles.css?v=v2.10-time-edit">
 </head>
 <body class="booting">
   <div class="ambient ambient-a" aria-hidden="true"></div>
@@ -116,6 +116,23 @@
 
   <div id="taskModal" class="modal-backdrop hidden"><div class="modal glass"><div class="modal-head"><div><small>EMPLOYER TASK</small><h3 id="taskModalTitle">Task</h3></div><button data-close="taskModal" class="icon-btn">×</button></div><div id="taskModalBody"></div></div></div>
 
+  <div id="timeEditModal" class="modal-backdrop hidden">
+    <div class="modal glass time-edit-modal">
+      <div class="modal-head"><div><small>WORK TIME</small><h3>Edit Work Entry</h3></div><button type="button" data-close="timeEditModal" class="icon-btn">×</button></div>
+      <input id="timeEditId" type="hidden">
+      <div id="timeEditInvoiceWarning" class="credential-box hidden"><strong>Already invoiced</strong><p>Editing this work entry will not recalculate an invoice that was already created.</p></div>
+      <div class="form-grid">
+        <div class="field"><span>Employer</span><select id="timeEditClient"></select></div>
+        <div class="field"><span>Hourly rate</span><input id="timeEditRate" type="number" min="0" step="0.01"></div>
+        <div class="field"><span>Start date & time</span><input id="timeEditStart" type="datetime-local"></div>
+        <div class="field"><span>End date & time</span><input id="timeEditEnd" type="datetime-local"><small class="muted">Leave blank for an active session.</small></div>
+      </div>
+      <div class="field"><span>Task / work description</span><input id="timeEditTask" placeholder="What work was performed?"></div>
+      <div id="timeEditDuration" class="time-edit-duration">—</div>
+      <div class="modal-actions"><button type="button" data-close="timeEditModal" class="btn ghost">Cancel</button><button type="button" class="btn primary" data-action="save-time-entry">Save Changes</button></div>
+    </div>
+  </div>
+
   <div id="invoiceModal" class="modal-backdrop hidden"><div class="modal invoice-modal"><div class="modal-head dark-head"><div><small>INVOICE PREVIEW</small><h3>Professional Invoice</h3></div><button data-close="invoiceModal" class="icon-btn">×</button></div><div id="invoiceModalBody"></div></div></div>
 
   <div id="statusDock" class="status-dock hidden">
@@ -152,7 +169,7 @@
 
   <script src="config.js?v=clean-v1"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=v2.9-admin-task-scroll"></script>
+  <script src="app.js?v=v2.10-time-edit"></script>
   <script src="pwa.js?v=v2.3"></script>
 </body>
 </html>

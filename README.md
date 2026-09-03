@@ -84,3 +84,8 @@ Because this is a static frontend, serve the directory with any local static ser
 - Long task instructions and action buttons remain reachable by touch.
 - Sticky task header keeps the close control reachable while scrolling.
 - PWA cache version bumped so installed apps receive the fix.
+
+## v2.10 — Editable work time
+Admin Time Log entries now include an Edit action. You can correct employer, task/description, start date/time, end date/time, and hourly rate. Duration is recalculated automatically. Active sessions may keep the end time blank. Invoiced entries display a warning because editing the time log does not retroactively recalculate an already-created invoice.
+
+No database migration is required when using the existing `time_admin_all` RLS policy from the clean migration.

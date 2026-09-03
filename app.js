@@ -1,4 +1,4 @@
-const BUILD="v2.9-admin-task-scroll";
+const BUILD="v2.10-time-edit";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -6,6 +6,7 @@ const esc=(v="")=>String(v).replace(/[&<>"']/g,s=>({"&":"&amp;","<":"&lt;",">":"
 const money=n=>"$"+Number(n||0).toFixed(2);
 const fmtDate=v=>{if(!v)return"—";const d=new Date(String(v).length===10?v+"T00:00:00":v);return isNaN(d)?"—":d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})};
 const fmtTime=v=>v?new Date(v).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"—";
+const toLocalDateTimeInput=v=>{if(!v)return"";const d=new Date(v);if(isNaN(d))return"";const p=n=>String(n).padStart(2,"0");return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`};
 const humanSize=n=>{let x=Number(n||0),u=["B","KB","MB","GB"],i=0;while(x>=1024&&i<3){x/=1024;i++}return`${i&&x<10?x.toFixed(1):Math.round(x)} ${u[i]}`};
 const websiteHref=v=>{const raw=String(v||"").trim();if(!raw)return"#";const candidate=/^https?:\/\//i.test(raw)?raw:`https://${raw}`;try{const u=new URL(candidate);return ["http:","https:"].includes(u.protocol)?u.href:"#"}catch{return"#"}};
 
@@ -195,11 +196,11 @@ function renderTimePage(){
       </article>
     </div>
     <article class="card glass" style="margin-top:13px"><span class="section-label">ACTIVE SESSIONS</span><h3>Running client timers</h3><div id="activeSessions">${active.length?active.map(activeSessionHtml).join(""):'<div class="empty"><strong>No active sessions</strong></div>'}</div></article>
-    <article class="card glass" style="margin-top:13px"><span class="section-label">WORK HISTORY</span><h3>Recent entries</h3><div class="table-list">${state.time.slice(0,40).map(e=>`<div class="row-card"><div><strong>${esc(clientName(e.client_id))}</strong><small>${esc(e.task||"General work")}</small></div><div><strong>${fmtDate(e.clock_in)}</strong><small>${fmtTime(e.clock_in)}${e.clock_out?" → "+fmtTime(e.clock_out):" → active"}</small></div><div><strong>${dur(hoursOf(e))}</strong><small>${money(e.hourly_rate||rate)}/h</small></div><div>${e.invoice_id?'<span class="status complete">Invoiced</span>':e.clock_out?'<span class="status">Uninvoiced</span>':'<span class="status">Running</span>'}</div></div>`).join("")}</div></article>`;
+    <article class="card glass" style="margin-top:13px"><span class="section-label">WORK HISTORY</span><h3>Recent entries</h3><div class="table-list">${state.time.slice(0,40).map(e=>`<div class="row-card"><div><strong>${esc(clientName(e.client_id))}</strong><small>${esc(e.task||"General work")}</small></div><div><strong>${fmtDate(e.clock_in)}</strong><small>${fmtTime(e.clock_in)}${e.clock_out?" → "+fmtTime(e.clock_out):" → active"}</small></div><div><strong>${dur(hoursOf(e))}</strong><small>${money(e.hourly_rate||rate)}/h</small></div><div class="row-actions">${e.invoice_id?'<span class="status complete">Invoiced</span>':e.clock_out?'<span class="status">Uninvoiced</span>':'<span class="status">Running</span>'}<button class="mini-btn" data-action="edit-time-entry" data-id="${e.id}">Edit</button></div></div>`).join("")}</div></article>`;
   startTicker();
 }
 
-function activeSessionHtml(e){return`<div class="active-session"><div><strong>${esc(clientName(e.client_id))}</strong><small class="muted">${esc(e.task||"General work")}</small></div><div><span class="muted">Started</span><strong>${fmtTime(e.clock_in)}</strong></div><div class="live-time" data-session-clock="${e.id}">00:00:00</div><button class="mini-btn" data-action="stop-session" data-id="${e.id}">Stop</button></div>`}
+function activeSessionHtml(e){return`<div class="active-session"><div><strong>${esc(clientName(e.client_id))}</strong><small class="muted">${esc(e.task||"General work")}</small></div><div><span class="muted">Started</span><strong>${fmtTime(e.clock_in)}</strong></div><div class="live-time" data-session-clock="${e.id}">00:00:00</div><div class="row-actions"><button class="mini-btn" data-action="edit-time-entry" data-id="${e.id}">Edit</button><button class="mini-btn" data-action="stop-session" data-id="${e.id}">Stop</button></div></div>`}
 
 function renderAdminInvoices(){
   setPageTitle("Invoices");
@@ -454,6 +455,44 @@ async function uploadFiles(files){const c=currentClient();if(!c)return toast("No
 async function openFile(path){const {data,error}=await state.sb.storage.from("client-files").createSignedUrl(path,120);if(error)return toast(error.message);window.open(data.signedUrl,"_blank","noopener")}
 async function deleteFile(path){if(!confirm("Delete this file?"))return;const {error}=await state.sb.storage.from("client-files").remove([path]);if(error)return toast(error.message);renderEmployer(state.employerView)}
 
+function openTimeEntryEditor(id){
+  const e=state.time.find(x=>x.id===id);if(!e)return toast("Work entry not found");
+  $("timeEditId").value=e.id;
+  $("timeEditClient").innerHTML=state.clients.map(c=>`<option value="${c.id}" ${c.id===e.client_id?"selected":""}>${esc(c.name)}</option>`).join("");
+  $("timeEditTask").value=e.task||"";
+  $("timeEditStart").value=toLocalDateTimeInput(e.clock_in);
+  $("timeEditEnd").value=toLocalDateTimeInput(e.clock_out);
+  $("timeEditRate").value=Number(e.hourly_rate??state.billing?.hourly_rate??3).toFixed(2);
+  $("timeEditInvoiceWarning").classList.toggle("hidden",!e.invoice_id);
+  updateTimeEditPreview();
+  openModal("timeEditModal");
+}
+function updateTimeEditPreview(){
+  const start=$("timeEditStart")?.value,end=$("timeEditEnd")?.value,box=$("timeEditDuration");if(!box)return;
+  if(!start){box.textContent="Enter a start time";return}
+  if(!end){box.textContent="Active session · duration will continue running";return}
+  const s=new Date(start),e=new Date(end);
+  if(isNaN(s)||isNaN(e)||e<=s){box.textContent="End time must be later than start time";return}
+  box.textContent=`Recalculated duration: ${dur((e-s)/36e5)}`;
+}
+async function saveTimeEntryEdit(){
+  const id=$("timeEditId").value,entry=state.time.find(x=>x.id===id);if(!entry)return toast("Work entry not found");
+  const client_id=$("timeEditClient").value,task=$("timeEditTask").value.trim()||"General work",startRaw=$("timeEditStart").value,endRaw=$("timeEditEnd").value,rate=Number($("timeEditRate").value);
+  if(!client_id||!startRaw)return toast("Employer and start time are required");
+  const clock_in=new Date(startRaw),clock_out=endRaw?new Date(endRaw):null;
+  if(isNaN(clock_in))return toast("Invalid start time");
+  if(clock_out&&isNaN(clock_out))return toast("Invalid end time");
+  if(clock_out&&clock_out<=clock_in)return toast("End time must be later than start time");
+  if(!Number.isFinite(rate)||rate<0)return toast("Enter a valid hourly rate");
+  if(entry.invoice_id&&!confirm("This work entry is already attached to an invoice. Changing its time will not automatically change the existing invoice total. Continue?"))return;
+  const hours=clock_out?(clock_out-clock_in)/36e5:null;
+  const payload={client_id,task,clock_in:clock_in.toISOString(),clock_out:clock_out?clock_out.toISOString():null,hours,hourly_rate:rate};
+  const {data,error}=await state.sb.from("time_entries").update(payload).eq("id",id).select("id").maybeSingle();
+  if(error)return toast(error.message);
+  if(!data)return toast("Work entry was not updated. Check your permissions.");
+  await loadTime();closeModal("timeEditModal");renderTimePage();updateStatusDock();toast("Work time updated");
+}
+
 async function clockIn(){const clientId=$("timerClient")?.value,task=$("timerTask")?.value.trim();if(!clientId)return toast("Select an employer");if(state.time.some(e=>e.client_id===clientId&&!e.clock_out))return toast("That employer already has an active session");const {error}=await state.sb.from("time_entries").insert({user_id:state.session.user.id,client_id:clientId,task,clock_in:new Date().toISOString(),hourly_rate:Number(state.billing?.hourly_rate||3)});if(error)return toast(error.message);await loadTime();renderTimePage();updateStatusDock()}
 async function stopSession(id){const e=state.time.find(x=>x.id===id);if(!e)return;const out=new Date().toISOString(),h=(new Date(out)-new Date(e.clock_in))/36e5;const {error}=await state.sb.from("time_entries").update({clock_out:out,hours:h}).eq("id",id);if(error)return toast(error.message);await loadTime();renderTimePage();updateStatusDock()}
 async function addManualHours(){const client_id=$("manualClient").value,date=$("manualDate").value,h=Number($("manualHours").value),rate=Number($("manualRate").value),task=$("manualTask").value.trim()||"Manual work";if(!client_id||!date||!h)return toast("Complete employer, date and hours");const start=new Date(`${date}T09:00:00`),end=new Date(start.getTime()+h*36e5);const {error}=await state.sb.from("time_entries").insert({user_id:state.session.user.id,client_id,task,clock_in:start.toISOString(),clock_out:end.toISOString(),hours:h,hourly_rate:rate});if(error)return toast(error.message);await loadTime();renderTimePage()}
@@ -544,8 +583,10 @@ document.addEventListener("click",async e=>{
     else if(act==="delete-file")await deleteFile(a.dataset.path);
     else if(act==="clock-in")await clockIn();
     else if(act==="clock-out-selected"){const cid=$("timerClient").value,active=state.time.find(x=>x.client_id===cid&&!x.clock_out);if(!active)return toast("Select an employer with an active session");await stopSession(active.id)}
+    else if(act==="edit-time-entry")openTimeEntryEditor(id);
     else if(act==="stop-session")await stopSession(id);
     else if(act==="manual-hours")await addManualHours();
+    else if(act==="save-time-entry")await saveTimeEntryEdit();
     else if(act==="preview-invoice"){try{const d=draftInvoice();$("invoiceModalBody").innerHTML=invoiceHtml(d,state.clients.find(c=>c.id===d.client_id));openModal("invoiceModal")}catch(x){toast(x.message)}}
     else if(act==="create-invoice")await createInvoice();
     else if(act==="view-invoice")await viewInvoice(id);
@@ -555,7 +596,7 @@ document.addEventListener("click",async e=>{
   }catch(err){console.error(err);toast(err.message||"Something went wrong")}
 });
 
-document.addEventListener("input",e=>{if(e.target.id==="clientSearch")renderClientRows();if(["invoiceClient","invoiceMode","invoiceStart","invoiceEnd","invoiceManualHours","invoiceRate"].includes(e.target.id))updateInvoicePreview()});
+document.addEventListener("input",e=>{if(e.target.id==="clientSearch")renderClientRows();if(["invoiceClient","invoiceMode","invoiceStart","invoiceEnd","invoiceManualHours","invoiceRate"].includes(e.target.id))updateInvoicePreview();if(["timeEditStart","timeEditEnd"].includes(e.target.id))updateTimeEditPreview()});
 document.addEventListener("change",e=>{if(e.target.id==="clientSort")renderClientRows();if(e.target.id==="taskFilter")renderTaskInboxRows();if(["invoiceClient","invoiceMode","invoiceStart","invoiceEnd","invoiceManualHours","invoiceRate"].includes(e.target.id))updateInvoicePreview();if(e.target.matches("#overviewFiles,#filesPageInput")&&e.target.files?.length)uploadFiles([...e.target.files])});
 
 $("loginForm").addEventListener("submit",async e=>{
