@@ -138,10 +138,21 @@ async function initializeAuth(){
   const {data}=await sb.auth.getSession();
   session=data.session;
   if(session) await onSignedIn(); else lockUI(true);
-  sb.auth.onAuthStateChange(async(_event,newSession)=>{
+  sb.auth.onAuthStateChange((_event,newSession)=>{
     session=newSession;
-    if(newSession) await onSignedIn();
-    else {profile=null;clients=[];trash=[];lockUI(true);}
+    if(newSession){
+      // Run Supabase queries after the auth callback finishes.
+      // Awaiting database calls directly inside onAuthStateChange can deadlock sign-in.
+      setTimeout(()=>{
+        onSignedIn().catch(err=>{
+          console.error('Post-login load failed:',err);
+          lockUI(true);
+          $('login-error').textContent=err?.message||'Signed in, but the CRM could not load.';
+        });
+      },0);
+    } else {
+      profile=null;clients=[];trash=[];lockUI(true);
+    }
   });
 }
 
@@ -778,8 +789,13 @@ $('login-form')?.addEventListener('submit',async e=>{
     loginEmail=resolved;
   }
   try {
-    const {error}=await sb.auth.signInWithPassword({email:loginEmail,password:$('login-password').value});
-    $('login-error').textContent=error?error.message:'';
+    const {data,error}=await sb.auth.signInWithPassword({email:loginEmail,password:$('login-password').value});
+    if(error){
+      $('login-error').textContent=error.message;
+      return;
+    }
+    session=data.session;
+    $('login-error').textContent='';
   } catch (err) {
     console.error(err);
     $('login-error').textContent=err?.message||'Unable to sign in. Please try again.';

@@ -353,3 +353,7 @@ This edition includes the custom Jeffdesign101 logo and cover artwork:
 
 The logo is used in the sidebar and login screen.
 The cover artwork is used as the main dashboard hero background.
+
+
+## Login hotfix v2
+This build fixes a Supabase auth callback deadlock that could leave the login screen on `Signing in...`. It also adds cache-busting query strings for GitHub Pages.
