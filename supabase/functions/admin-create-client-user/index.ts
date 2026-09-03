@@ -4,6 +4,8 @@ const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
 };
 
 const json = (body: unknown, status = 200) =>
@@ -11,6 +13,8 @@ const json = (body: unknown, status = 200) =>
 
 const cleanUsername = (v: string) =>
   v.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 48);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -34,10 +38,14 @@ Deno.serve(async (req) => {
     const { data: profile } = await admin.from("profiles").select("role").eq("id", callerData.user.id).single();
     if (profile?.role !== "admin") return json({ error: "Admin access required" }, 403);
 
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 16_384) return json({ error: "Request too large" }, 413);
+
     const { clientId, username, password } = await req.json();
-    const usernameClean = cleanUsername(username || "");
-    if (!clientId || !usernameClean || !password || password.length < 8)
-      return json({ error: "Client, username and password (8+ characters) are required" }, 400);
+    const usernameClean = cleanUsername(String(username || ""));
+    const passwordText = String(password || "");
+    if (!UUID_RE.test(String(clientId || "")) || usernameClean.length < 3 || passwordText.length < 8 || passwordText.length > 128)
+      return json({ error: "Valid client, username (3+ characters) and password (8-128 characters) are required" }, 400);
 
     const { data: dup } = await admin.from("clients").select("id").ilike("client_username", usernameClean).neq("id", clientId).maybeSingle();
     if (dup) return json({ error: "Username is already in use" }, 409);
@@ -50,13 +58,13 @@ Deno.serve(async (req) => {
 
     if (authUserId) {
       const { error } = await admin.auth.admin.updateUserById(authUserId, {
-        email: internalEmail, password, email_confirm: true,
+        email: internalEmail, password: passwordText, email_confirm: true,
         user_metadata: { client_username: usernameClean, client_id: clientId }
       });
       if (error) throw error;
     } else {
       const { data, error } = await admin.auth.admin.createUser({
-        email: internalEmail, password, email_confirm: true,
+        email: internalEmail, password: passwordText, email_confirm: true,
         user_metadata: { client_username: usernameClean, client_id: clientId }
       });
       if (error) throw error;

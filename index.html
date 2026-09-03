@@ -3,11 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#090d0a">
+  <meta name="theme-color" content="#07100b">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Jeffdesign101 secure VA workspace for employers, tasks, time tracking, files and billing.">
   <title>Jeffdesign101 — VA Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=clean-responsive-v2">
+  <link rel="stylesheet" href="styles.css?v=v2-modern">
 </head>
 <body class="booting">
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
   <section id="loginScreen" class="login-screen">
     <form id="loginForm" class="login-card glass" autocomplete="on">
       <div class="login-brand">
@@ -40,7 +44,7 @@
     <main class="main">
       <header class="topbar glass">
         <div><small id="workspaceLabel">WORKSPACE</small><h2 id="pageTitle">Dashboard</h2></div>
-        <div class="top-actions"><span id="roleBadge" class="role-badge">ADMIN</span><button id="signOutBtn" class="btn ghost">Sign out</button></div>
+        <div class="top-actions"><button id="commandBtn" class="icon-btn command-btn" type="button" title="Quick navigation (Ctrl/⌘ K)" aria-label="Open quick navigation">⌘</button><span id="roleBadge" class="role-badge">ADMIN</span><button id="signOutBtn" class="btn ghost">Sign out</button></div>
       </header>
 
       <div id="employerTabs" class="employer-tabs glass hidden">
@@ -102,10 +106,18 @@
   </div>
   <button id="restoreStatusBtn" class="restore-status hidden">VA Status</button>
 
-  <div id="toast" class="toast"></div>
+  <div id="commandPalette" class="command-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="commandTitle">
+    <div class="command-palette glass">
+      <div class="command-search"><span>⌕</span><input id="commandSearch" autocomplete="off" placeholder="Jump to a page or action…" aria-label="Quick navigation search"><kbd>ESC</kbd></div>
+      <div class="command-heading" id="commandTitle">Quick navigation</div>
+      <div id="commandResults" class="command-results"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="config.js?v=clean-v1"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=clean-responsive-v2"></script>
+  <script src="app.js?v=v2-modern"></script>
 </body>
 </html>

@@ -1,85 +1,42 @@
-# Jeffdesign101 Clean Rebuild v1
+# Jeffdesign101 CRM / Employer Portal — v2 Modern
 
-This package is a clean rebuild of the CRM/Employer Portal. It is not another patch layered over the previous `app.js`.
+A production-focused upgrade of the clean rebuild. It remains **zero-build** and GitHub-Pages-friendly while using Supabase for authentication, RLS, storage and data.
 
-## What was wrong in the uploaded build
+## v2 upgrades
 
-The audit found:
+- Modern glass/dark design system with improved hierarchy, spacing and responsive behavior.
+- Motion system for page transitions, panels, modals and ambient effects, with `prefers-reduced-motion` support.
+- Global quick-navigation palette (`Ctrl+K` / `⌘K`) for Admin and Employer views.
+- Stronger session/timer lifecycle: timers stop on sign-out/backgrounding and resume safely when visible.
+- Safer external website URL handling and existing rich-text sanitizer retained.
+- Employer file uploads now enforce a 25 MB client-side limit before storage upload.
+- Generic login failure messaging reduces username enumeration leakage in the UI.
+- Database performance indexes for clients, tasks, time entries and invoices.
+- Database audit log + triggers for clients, tasks, time entries and invoices.
+- Hardened `SECURITY DEFINER` search paths (`pg_catalog, public`).
 
-- several generations of RLS policies in one 900+ line SQL file;
-- old email-matching policies mixed with the newer `auth_user_id` account-link system;
-- authentication handled from both form-submit and auth-state callbacks, creating race conditions;
-- repeated listeners and render paths added during later upgrades;
-- employer rich-text task HTML inserted back into Admin pages without a proper sanitizer;
-- billing/invoice access rules added as late patches rather than one coherent policy set;
-- task update permissions split between UI assumptions and multiple triggers.
+## Deployment
 
-The clean rebuild uses one role model:
-
-- **Admin / VA** — full workspace.
-- **Employer** — linked through `clients.auth_user_id`.
-
-## Included features
-
-### Admin / VA
-- Dashboard
-- Employer directory
-- Employer details
-- Task Inbox + unread badge
-- Read-only Employer task content
-- Mark task Complete / Reopen
-- Multi-client active work timers
-- Manual hours
-- Time history
-- Invoice generator (Time Log or manual hours)
-- Invoice popup
-- Mark Paid
-- Rate & Billing
-- Trash / Restore
-- Employer username/password creation/reset
-
-### Employer
-- Overview
-- Rich-text task composer
-- Tasks with See more / See less
-- Employer-only task editing
-- Project Information
-- Shared Notes
-- File upload/download/delete
-- Project status Active / Paused / Complete
-- Work Monitor (day/week/month + live timer)
-- Small closable VA-status pill
-- Incoming/Paid invoices
-- Invoice popup
-- Account password change
-
-## IMPORTANT: database cleanup
-
-Do **not** rerun the old accumulated `supabase-schema.sql`.
-
+### 1. Database
 Run only:
 
 `supabase-migration-clean.sql`
 
-in Supabase SQL Editor. It is written to be idempotent and replaces the conflicting policies/triggers with one consistent set.
+The migration is intended to be rerunnable. Review it in a staging Supabase project before production, especially if your existing base tables differ from the expected schema.
 
-## Edge Function
-
-Keep the function name exactly:
+### 2. Edge Function
+Deploy the function named exactly:
 
 `admin-create-client-user`
 
-Replace its code with:
+Source:
 
 `supabase/functions/admin-create-client-user/index.ts`
 
-In Supabase Edge Function settings, keep **Verify JWT with legacy secret = OFF**.
+Keep **Verify JWT with legacy secret = OFF**. The function validates the caller with `auth.getUser()` and then confirms the caller has an Admin profile before using the service-role client.
 
-The function itself validates the signed-in Admin before creating/resetting an Employer login.
-
-## GitHub
-
-Replace your current repository frontend with:
+### 3. Frontend
+Deploy these files together:
 
 - `index.html`
 - `styles.css`
@@ -87,24 +44,22 @@ Replace your current repository frontend with:
 - `config.js`
 - `assets/`
 
-Then hard-refresh after GitHub Pages deploys.
+`config.js` should contain only the Supabase project URL and publishable/anon key. Never put the service-role key in browser code.
 
-## Security note
+## Security model
 
-Employer rich-text task HTML is sanitized before being displayed in either Employer or Admin views. Admin cannot edit Employer task content at the database layer; Admin can only mark tasks seen/completed/reopened.
+- Admin / VA: full workspace access through RLS.
+- Employer: linked by `clients.auth_user_id`.
+- Employer task rich text is sanitized before rendering.
+- Admin cannot edit Employer-authored task content at the DB trigger layer; Admin can manage workflow state.
+- Employer can update only allowed project status fields through the client guard trigger.
+- Storage remains private and is accessed through signed URLs / RLS.
+- Audit records are Admin-readable only.
 
+## Important production recommendations
 
-## Employer responsive layout fix
+Before a public launch, enable MFA for Admin accounts in Supabase Auth, configure email/security alerts, validate your production Auth redirect URLs, and add automated RLS integration tests using separate Admin and Employer test users.
 
-This build fixes the Employer Portal becoming squeezed into narrow side-by-side columns.
+## Local smoke test
 
-Changes:
-- Employer mode no longer inherits the Admin sidebar grid.
-- Employer main content always uses the full available width.
-- Overview switches to one column at laptop/tablet widths.
-- Header and Sign out button no longer squeeze the page.
-- Employer tabs scroll horizontally on smaller screens.
-- Forms, rich-text editor, task cards, files, and status cards cannot force horizontal overflow.
-- Strong phone and ultra-narrow safeguards added.
-
-No SQL or Edge Function change is required for this layout fix.
+Because this is a static frontend, serve the directory with any local static server rather than opening `index.html` via `file://`. Example: `python -m http.server 8080`.

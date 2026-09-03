@@ -1,4 +1,4 @@
-const BUILD="clean-v1";
+const BUILD="v2-modern";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -7,16 +7,16 @@ const money=n=>"$"+Number(n||0).toFixed(2);
 const fmtDate=v=>{if(!v)return"—";const d=new Date(String(v).length===10?v+"T00:00:00":v);return isNaN(d)?"—":d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})};
 const fmtTime=v=>v?new Date(v).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"—";
 const humanSize=n=>{let x=Number(n||0),u=["B","KB","MB","GB"],i=0;while(x>=1024&&i<3){x/=1024;i++}return`${i&&x<10?x.toFixed(1):Math.round(x)} ${u[i]}`};
-const websiteHref=v=>/^https?:\/\//i.test(v||"")?v:"https://"+v;
+const websiteHref=v=>{const raw=String(v||"").trim();if(!raw)return"#";const candidate=/^https?:\/\//i.test(raw)?raw:`https://${raw}`;try{const u=new URL(candidate);return ["http:","https:"].includes(u.protocol)?u.href:"#"}catch{return"#"}};
 
 const state={
   sb:null,session:null,profile:null,role:null,clients:[],tasks:[],time:[],invoices:[],billing:null,
-  activeClient:null,adminView:"dashboard",employerView:"overview",workspacePromise:null,timer:null
+  activeClient:null,adminView:"dashboard",employerView:"overview",workspacePromise:null,timer:null,authSubscription:null,navSeq:0
 };
 
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove("show"),2200)}
 function configured(){return !!cfg.supabaseUrl&&!!cfg.supabasePublishableKey&&!cfg.supabaseUrl.includes("YOUR_")}
-function showLogin(msg=""){document.body.classList.remove("booting");$("loginScreen").classList.remove("hidden");$("app").classList.add("hidden");$("loginError").textContent=msg}
+function showLogin(msg=""){stopTicker();document.body.classList.remove("booting");$("loginScreen").classList.remove("hidden");$("app").classList.add("hidden");$("loginError").textContent=msg;closeCommandPalette()}
 function showApp(){document.body.classList.remove("booting");$("loginScreen").classList.add("hidden");$("app").classList.remove("hidden")}
 function currentClient(){return state.clients.find(c=>c.id===state.activeClient)||state.clients[0]||null}
 function roleIsAdmin(){return state.role==="admin"}
@@ -40,10 +40,11 @@ async function init(){
     if(state.session)await loadWorkspace();
     else showLogin();
 
-    sb.auth.onAuthStateChange((event,session)=>{
-      if(event==="SIGNED_OUT"){state.session=null;state.profile=null;state.role=null;showLogin()}
+    const {data:authListener}=sb.auth.onAuthStateChange((event,session)=>{
+      if(event==="SIGNED_OUT"){state.session=null;state.profile=null;state.role=null;state.clients=[];state.tasks=[];state.time=[];state.invoices=[];showLogin()}
       else if(session)state.session=session;
     });
+    state.authSubscription=authListener?.subscription||null;
   }catch(e){console.error(e);showLogin(e.message)}
 }
 
@@ -91,13 +92,13 @@ function configureRoleUI(){
 
 function setPageTitle(t){$("pageTitle").textContent=t}
 function renderAdmin(view){
-  state.adminView=view;
+  state.navSeq++;state.adminView=view;
   $$("[data-admin-view]").forEach(b=>b.classList.toggle("active",b.dataset.adminView===view));
   const map={dashboard:renderDashboard,clients:renderClients,tasks:renderTaskInbox,time:renderTimePage,invoices:renderAdminInvoices,billing:renderBilling,trash:renderTrash};
   map[view]?.();
 }
 function renderEmployer(view){
-  state.employerView=view;
+  state.navSeq++;state.employerView=view;
   $$("[data-employer-view]").forEach(b=>b.classList.toggle("active",b.dataset.employerView===view));
   const map={overview:renderEmployerOverview,tasks:renderEmployerTasks,files:renderEmployerFiles,work:renderEmployerWork,invoices:renderEmployerInvoices,account:renderEmployerAccount};
   map[view]?.();
@@ -148,9 +149,9 @@ function renderClientRows(){
 }
 
 async function renderClientDetail(id){
-  const c=state.clients.find(x=>x.id===id);if(!c)return;
+  const seq=++state.navSeq,c=state.clients.find(x=>x.id===id);if(!c)return;
   state.activeClient=id;setPageTitle("Employer Details");
-  const sub=await getSubmission(id),tasks=state.tasks.filter(t=>t.client_id===id),files=await listFiles(id);
+  const [sub,files]=await Promise.all([getSubmission(id),listFiles(id)]),tasks=state.tasks.filter(t=>t.client_id===id);if(seq!==state.navSeq)return;
   $("view").innerHTML=`
     <button class="btn ghost" data-admin-view="clients">← Back</button>
     <article class="card glass" style="margin-top:10px"><div class="section-head"><div><span class="section-label">EMPLOYER / WEBSITE PROJECT</span><h3>${esc(c.name)}</h3><p class="muted">${esc(c.company||"")}</p></div><div>${statusPill(c.status)} <button class="mini-btn" data-action="edit-client" data-id="${c.id}">Edit</button></div></div>
@@ -220,14 +221,15 @@ function renderBilling(){
 }
 
 async function renderTrash(){
+  const seq=state.navSeq;
   setPageTitle("Trash");
-  const {data,error}=await state.sb.from("clients").select("*").not("deleted_at","is",null).order("deleted_at",{ascending:false});if(error){toast(error.message);return}
+  const {data,error}=await state.sb.from("clients").select("*").not("deleted_at","is",null).order("deleted_at",{ascending:false});if(error){toast(error.message);return}if(seq!==state.navSeq)return;
   $("view").innerHTML=`<article class="card glass"><span class="section-label">TRASH</span><h3>Deleted employers</h3><div class="table-list">${(data||[]).map(c=>`<div class="row-card"><div><strong>${esc(c.name)}</strong><small>${esc(c.company||"")}</small></div><div>${statusPill(c.status)}</div><div><small>Deleted ${fmtDate(c.deleted_at)}</small></div><div class="row-actions"><button class="mini-btn" data-action="restore-client" data-id="${c.id}">Restore</button></div></div>`).join("")||'<div class="empty"><strong>Trash is empty</strong></div>'}</div></article>`;
 }
 
 async function renderEmployerOverview(){
-  setPageTitle("Employer Portal");const c=currentClient();if(!c){$("view").innerHTML='<div class="empty"><strong>No project linked</strong></div>';return}
-  const sub=await getSubmission(c.id),tasks=state.tasks.filter(t=>t.client_id===c.id),files=await listFiles(c.id),editable=c.portal_permission!=="view";
+  const seq=state.navSeq;setPageTitle("Employer Portal");const c=currentClient();if(!c){$("view").innerHTML='<div class="empty"><strong>No project linked</strong></div>';return}
+  const [sub,files]=await Promise.all([getSubmission(c.id),listFiles(c.id)]),tasks=state.tasks.filter(t=>t.client_id===c.id),editable=c.portal_permission!=="view";if(seq!==state.navSeq)return;
   $("view").innerHTML=`
     <article class="card glass"><div class="section-head"><div><span class="section-label">EMPLOYER PROJECT</span><h3>${esc(c.name)}</h3><p class="muted">${esc(c.company||c.project_type||"Website project")}</p></div><div class="row-actions">${["ongoing","paused","complete"].map(s=>`<button class="mini-btn ${c.status===s?"active":""}" data-action="employer-status" data-status="${s}" ${editable?"":"disabled"}>${s==="ongoing"?"Active":s[0].toUpperCase()+s.slice(1)}</button>`).join("")}</div></div></article>
     <div class="stats"><div class="stat glass"><span>Open requests</span><strong>${tasks.filter(t=>!t.done).length}</strong></div><div class="stat glass"><span>Completed</span><strong>${tasks.filter(t=>t.done).length}</strong></div><div class="stat glass"><span>Incoming invoices</span><strong>${state.invoices.filter(i=>i.client_id===c.id&&i.status==="pending").length}</strong></div><div class="stat glass"><span>Amount due</span><strong>${money(state.invoices.filter(i=>i.client_id===c.id&&i.status==="pending").reduce((s,i)=>s+Number(i.total||0),0))}</strong></div></div>
@@ -244,7 +246,7 @@ function renderEmployerTasks(){
   setPageTitle("Tasks");const c=currentClient(),list=state.tasks.filter(t=>t.client_id===c?.id),editable=c?.portal_permission!=="view";
   $("view").innerHTML=`<div class="grid2">${editable?`<article class="card glass"><span class="section-label">NEW REQUEST</span><h3>Send a task</h3>${taskComposerHtml("tasks")}</article>`:""}<article class="card glass"><span class="section-label">TASK STATUS</span><h3>${list.filter(t=>!t.done).length} open · ${list.filter(t=>t.done).length} completed</h3></article></div><article class="card glass" style="margin-top:13px"><span class="section-label">TASK HISTORY</span><h3>All requests</h3>${taskListHtml(list,false,true)}</article>`;setupRichEditors()
 }
-async function renderEmployerFiles(){setPageTitle("Files");const c=currentClient(),files=await listFiles(c?.id),editable=c?.portal_permission!=="view";$("view").innerHTML=`<article class="card glass"><div class="section-head"><div><span class="section-label">PROJECT FILES</span><h3>Shared documents</h3></div>${editable?'<label class="btn primary">+ Upload Files<input id="filesPageInput" type="file" multiple hidden></label>':""}</div>${fileListHtml(files,c,editable)}</article>`}
+async function renderEmployerFiles(){const seq=state.navSeq;setPageTitle("Files");const c=currentClient(),files=await listFiles(c?.id),editable=c?.portal_permission!=="view";if(seq!==state.navSeq)return;$("view").innerHTML=`<article class="card glass"><div class="section-head"><div><span class="section-label">PROJECT FILES</span><h3>Shared documents</h3></div>${editable?'<label class="btn primary">+ Upload Files<input id="filesPageInput" type="file" multiple hidden></label>':""}</div>${fileListHtml(files,c,editable)}</article>`}
 function renderEmployerWork(){
   setPageTitle("Work Monitor");const c=currentClient(),list=state.time.filter(e=>e.client_id===c?.id),active=list.find(e=>!e.clock_out);
   $("view").innerHTML=`<article class="card glass"><span class="section-label">VA WORK STATUS</span><h3>${active?"Working now":"Signed out / Not working"}</h3><div class="timer-big" id="employerTimer">00:00:00</div><p class="muted">${active?`Current task: ${esc(active.task||"General work")} · started ${fmtTime(active.clock_in)}`:"No active session."}</p></article><div class="grid3" style="margin-top:13px"><div class="stat glass"><span>Today</span><strong>${dur(sumHours(list,todayStart()))}</strong></div><div class="stat glass"><span>This week</span><strong>${dur(sumHours(list,weekStart()))}</strong></div><div class="stat glass"><span>This month</span><strong>${dur(sumHours(list,monthStart()))}</strong></div></div><article class="card glass" style="margin-top:13px"><span class="section-label">WORK HISTORY</span><h3>Recent sessions</h3><div class="table-list">${list.slice(0,30).map(e=>`<div class="row-card"><div><strong>${esc(e.task||"General work")}</strong><small>${fmtDate(e.clock_in)}</small></div><div><strong>${fmtTime(e.clock_in)}${e.clock_out?" → "+fmtTime(e.clock_out):" → now"}</strong></div><div><strong>${dur(hoursOf(e))}</strong></div><div>${e.clock_out?'<span class="status complete">Completed</span>':'<span class="status">Working now</span>'}</div></div>`).join("")}</div></article>`;startTicker()
@@ -309,7 +311,7 @@ async function saveSubmission(field,value){const c=currentClient(),old=await get
 
 async function listFiles(clientId){if(!clientId)return[];const {data,error}=await state.sb.storage.from("client-files").list(clientId,{limit:100,sortBy:{column:"created_at",order:"desc"}});if(error){console.warn(error);return[]}return data||[]}
 function fileListHtml(files,c,editable){return`<div class="file-grid">${files.length?files.map(f=>`<div class="file-card"><div><strong>${esc(f.name.replace(/^\d+-[a-z0-9]+-/,""))}</strong><small class="muted">${humanSize(f.metadata?.size)}</small></div><div class="row-actions"><button class="mini-btn" data-action="open-file" data-path="${c.id}/${esc(f.name)}">Open</button>${editable?`<button class="mini-btn" data-action="delete-file" data-path="${c.id}/${esc(f.name)}">Delete</button>`:""}</div></div>`).join(""):'<div class="empty"><strong>No files yet</strong></div>'}</div>`}
-async function uploadFiles(files){const c=currentClient();for(const f of files){const name=`${Date.now()}-${crypto.randomUUID().slice(0,8)}-${f.name.replace(/[^\w.\- ]+/g,"_")}`;const {error}=await state.sb.storage.from("client-files").upload(`${c.id}/${name}`,f,{upsert:false});if(error)return toast(error.message)}toast("Files uploaded");renderEmployer(state.employerView)}
+async function uploadFiles(files){const c=currentClient();if(!c)return toast("No employer project linked");const maxBytes=25*1024*1024;for(const f of files){if(f.size>maxBytes)return toast(`${f.name} exceeds the 25 MB limit`);const name=`${Date.now()}-${crypto.randomUUID().slice(0,8)}-${f.name.replace(/[^\w.\- ]+/g,"_")}`;const {error}=await state.sb.storage.from("client-files").upload(`${c.id}/${name}`,f,{upsert:false});if(error)return toast(error.message)}toast("Files uploaded");renderEmployer(state.employerView)}
 async function openFile(path){const {data,error}=await state.sb.storage.from("client-files").createSignedUrl(path,120);if(error)return toast(error.message);window.open(data.signedUrl,"_blank","noopener")}
 async function deleteFile(path){if(!confirm("Delete this file?"))return;const {error}=await state.sb.storage.from("client-files").remove([path]);if(error)return toast(error.message);renderEmployer(state.employerView)}
 
@@ -339,10 +341,11 @@ async function restoreClient(id){const {error}=await state.sb.from("clients").up
 async function employerStatus(status){const c=currentClient();const {error}=await state.sb.from("clients").update({status}).eq("id",c.id);if(error)return toast(error.message);c.status=status;renderEmployerOverview()}
 async function changePassword(){const p=$("newEmployerPassword").value;if(p.length<8)return toast("Use at least 8 characters");const {error}=await state.sb.auth.updateUser({password:p});if(error)return toast(error.message);toast("Password changed")}
 
-function openModal(id){$(id).classList.remove("hidden")}
-function closeModal(id){$(id).classList.add("hidden")}
+function openModal(id){const el=$(id);if(!el)return;el.classList.remove("hidden");requestAnimationFrame(()=>el.classList.add("is-open"));document.body.classList.add("modal-open")}
+function closeModal(id){const el=$(id);if(!el)return;el.classList.remove("is-open");el.classList.add("hidden");if(!$$(".modal-backdrop:not(.hidden)").length)document.body.classList.remove("modal-open")}
+function stopTicker(){if(state.timer){clearInterval(state.timer);state.timer=null}}
 function startTicker(){
-  clearInterval(state.timer);
+  stopTicker();
   state.timer=setInterval(()=>{
     $$("[data-session-clock]").forEach(el=>{const e=state.time.find(x=>x.id===el.dataset.sessionClock);if(e)el.textContent=clockString(new Date()-new Date(e.clock_in))});
     const c=currentClient(),a=state.time.find(e=>e.client_id===c?.id&&!e.clock_out),em=$("employerTimer");if(em)em.textContent=a?clockString(new Date()-new Date(a.clock_in)):"00:00:00";
@@ -400,7 +403,7 @@ document.addEventListener("change",e=>{if(e.target.id==="clientSort")renderClien
 
 $("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();const btn=$("loginSubmit");btn.disabled=true;$("loginError").textContent="Signing in…";
-  try{const sb=initSupabase(),identifier=$("loginIdentifier").value.trim();let email=identifier;if(!identifier.includes("@")){const {data,error}=await sb.rpc("resolve_login_email",{login_name:identifier});if(error)throw error;if(!data)throw new Error("Username not found");email=data}const {data,error}=await sb.auth.signInWithPassword({email,password:$("loginPassword").value});if(error)throw error;state.session=data.session;$("loginError").textContent="";await loadWorkspace()}catch(x){$("loginError").textContent=x.message}finally{btn.disabled=false}
+  try{const sb=initSupabase(),identifier=$("loginIdentifier").value.trim();let email=identifier;if(!identifier.includes("@")){const {data,error}=await sb.rpc("resolve_login_email",{login_name:identifier});if(error)throw error;if(!data)throw new Error("Invalid username or password");email=data}const {data,error}=await sb.auth.signInWithPassword({email,password:$("loginPassword").value});if(error)throw error;state.session=data.session;$("loginError").textContent="";await loadWorkspace()}catch(x){$("loginError").textContent=x.message}finally{btn.disabled=false}
 });
 $("toggleLoginPassword").onclick=()=>{const i=$("loginPassword");i.type=i.type==="password"?"text":"password";$("toggleLoginPassword").textContent=i.type==="password"?"Show":"Hide"};
 $("toggleTempPassword").onclick=()=>{const i=$("clientTempPassword");i.type=i.type==="password"?"text":"password";$("toggleTempPassword").textContent=i.type==="password"?"Show":"Hide"};
@@ -412,7 +415,50 @@ $("hideStatusBtn").onclick=e=>{e.stopPropagation();sessionStorage.setItem("hideV
 $("restoreStatusBtn").onclick=()=>{sessionStorage.removeItem("hideVaStatus");updateStatusDock()};
 $("openWorkMonitorBtn").onclick=()=>{renderEmployer("work");$("statusPopover").classList.add("hidden")};
 document.addEventListener("click",e=>{if(!$("statusDock").contains(e.target))$("statusPopover").classList.add("hidden")});
-$$(".modal-backdrop").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)m.classList.add("hidden")}));
+$$(".modal-backdrop").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)closeModal(m.id)}));
+
+
+
+// ---------- v2 experience layer ----------
+const COMMANDS_ADMIN=[
+  {label:"Dashboard",hint:"Overview & KPIs",view:"dashboard",keywords:"home stats overview"},
+  {label:"Employers",hint:"Directory & projects",view:"clients",keywords:"clients companies projects"},
+  {label:"Task Inbox",hint:"Employer requests",view:"tasks",keywords:"tasks requests inbox"},
+  {label:"Time Log",hint:"Track work sessions",view:"time",keywords:"timer hours work"},
+  {label:"Invoices",hint:"Billing history",view:"invoices",keywords:"invoice payments money"},
+  {label:"Rate & Billing",hint:"Invoice settings",view:"billing",keywords:"rate settings billing"},
+  {label:"Trash",hint:"Restore employers",view:"trash",keywords:"deleted restore"},
+  {label:"Add Employer",hint:"Create a new employer",action:"new-client",keywords:"new client add"}
+];
+const COMMANDS_EMPLOYER=[
+  {label:"Overview",hint:"Project summary",view:"overview",keywords:"home project"},
+  {label:"Tasks",hint:"Requests & history",view:"tasks",keywords:"requests work"},
+  {label:"Files",hint:"Shared documents",view:"files",keywords:"upload documents"},
+  {label:"Work Monitor",hint:"VA hours & live status",view:"work",keywords:"time timer status"},
+  {label:"Invoices",hint:"Billing history",view:"invoices",keywords:"payments bill"},
+  {label:"Account",hint:"Login & password",view:"account",keywords:"security password"}
+];
+function commandItems(){return roleIsAdmin()?COMMANDS_ADMIN:COMMANDS_EMPLOYER}
+function renderCommandResults(query=""){
+  const box=$("commandResults");if(!box)return;
+  const q=query.trim().toLowerCase();
+  const items=commandItems().filter(x=>!q||`${x.label} ${x.hint} ${x.keywords}`.toLowerCase().includes(q));
+  box.innerHTML=items.length?items.map((x,i)=>`<button class="command-item ${i===0?"selected":""}" data-command-index="${i}" data-command-view="${esc(x.view||"")}" data-command-action="${esc(x.action||"")}"><span><strong>${esc(x.label)}</strong><small>${esc(x.hint)}</small></span><kbd>↵</kbd></button>`).join(""):`<div class="command-empty">No matching destination</div>`;
+}
+function openCommandPalette(){if(!state.session)return;const p=$("commandPalette");if(!p)return;p.classList.remove("hidden");requestAnimationFrame(()=>p.classList.add("is-open"));renderCommandResults();const input=$("commandSearch");input.value="";setTimeout(()=>input.focus(),0)}
+function closeCommandPalette(){const p=$("commandPalette");if(!p)return;p.classList.remove("is-open");p.classList.add("hidden")}
+function runCommandButton(btn){if(!btn)return;const view=btn.dataset.commandView,action=btn.dataset.commandAction;closeCommandPalette();if(view){roleIsAdmin()?renderAdmin(view):renderEmployer(view);return}if(action==="new-client"&&roleIsAdmin())openClientModal()}
+function installViewMotion(){const view=$("view");if(!view)return;new MutationObserver(()=>{view.classList.remove("view-enter");requestAnimationFrame(()=>view.classList.add("view-enter"))}).observe(view,{childList:true})}
+function setBusy(button,busy,label="Working…"){if(!button)return;if(busy){button.dataset.oldText=button.textContent;button.textContent=label;button.disabled=true;button.setAttribute("aria-busy","true")}else{button.textContent=button.dataset.oldText||button.textContent;button.disabled=false;button.removeAttribute("aria-busy")}}
+
+$("commandBtn")?.addEventListener("click",openCommandPalette);
+$("commandPalette")?.addEventListener("click",e=>{if(e.target===$("commandPalette"))closeCommandPalette();const b=e.target.closest("[data-command-view],[data-command-action]");if(b)runCommandButton(b)});
+$("commandSearch")?.addEventListener("input",e=>renderCommandResults(e.target.value));
+$("commandSearch")?.addEventListener("keydown",e=>{const buttons=$$("#commandResults .command-item");if(!buttons.length)return;let i=Math.max(0,buttons.findIndex(b=>b.classList.contains("selected")));if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();buttons[i].classList.remove("selected");i=(i+(e.key==="ArrowDown"?1:-1)+buttons.length)%buttons.length;buttons[i].classList.add("selected");buttons[i].scrollIntoView({block:"nearest"})}else if(e.key==="Enter"){e.preventDefault();runCommandButton(buttons[i])}});
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("commandPalette")?.classList.contains("hidden")?openCommandPalette():closeCommandPalette()}if(e.key==="Escape"){closeCommandPalette();$$(".modal-backdrop:not(.hidden)").forEach(m=>closeModal(m.id))}});
+window.addEventListener("beforeunload",stopTicker);
+document.addEventListener("visibilitychange",()=>{if(document.hidden)stopTicker();else if(state.session)startTicker()});
+installViewMotion();
 
 console.info("Jeffdesign101",BUILD);
 init();
