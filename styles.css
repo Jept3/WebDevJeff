@@ -476,3 +476,129 @@ body.locked .noise{filter:blur(5px);pointer-events:none;user-select:none}
     background-position:center center!important;
   }
 }
+
+
+/* Manual hours entry */
+.manual-hours-grid{
+  display:grid;
+  grid-template-columns:1.25fr .9fr .75fr .75fr;
+  gap:12px;
+}
+.manual-hours-grid label span{
+  display:block;
+  font-size:11px;
+  color:#aeb9b1;
+  margin-bottom:6px;
+}
+.manual-hours-grid input,
+.manual-hours-grid select,
+#manual-task{
+  width:100%;
+  min-height:44px;
+  border:1px solid var(--line);
+  background:rgba(4,7,5,.52);
+  color:var(--text);
+  border-radius:13px;
+  padding:10px 12px;
+  outline:none;
+}
+.manual-hours-grid input:focus,
+.manual-hours-grid select:focus,
+#manual-task:focus{
+  border-color:rgba(186,255,58,.45);
+  box-shadow:0 0 0 4px rgba(186,255,58,.04);
+}
+.manual-hours-footer{
+  margin-top:14px;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:22px;
+}
+.manual-total{
+  min-width:150px;
+  text-align:right;
+}
+.manual-total span{
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.manual-total strong{
+  display:block;
+  font-size:22px;
+  margin-top:3px;
+}
+@media(max-width:900px){
+  .manual-hours-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:600px){
+  .manual-hours-grid{grid-template-columns:1fr}
+  .manual-hours-footer{justify-content:space-between}
+}
+
+
+/* Full dedicated Client Portal */
+.client-portal-view{max-width:1500px;margin:0 auto}
+.client-portal-header{
+  margin-top:20px;padding:24px;border-radius:24px;display:flex;justify-content:space-between;align-items:center;gap:16px
+}
+.client-portal-header h2{margin:4px 0 4px;font-size:30px}
+.client-portal-header p{margin:0;color:var(--muted)}
+.client-portal-nav{
+  margin-top:12px;padding:7px;border-radius:18px;display:flex;gap:6px;overflow-x:auto;position:sticky;top:104px;z-index:15
+}
+.client-tab{
+  flex:1;min-width:105px;border:0;background:transparent;color:#99a69d;border-radius:12px;padding:10px 12px;font-weight:800;transition:.2s
+}
+.client-tab:hover,.client-tab.active{background:rgba(186,255,58,.10);color:var(--lime)}
+.portal-overview-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:16px;margin-top:16px}
+.portal-summary-card{border-radius:22px;padding:22px}
+.portal-summary-card.full{grid-column:1/-1}
+.portal-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.portal-kpi{padding:16px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.025)}
+.portal-kpi span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+.portal-kpi strong{display:block;font-size:22px;margin-top:5px}
+.portal-task-form{display:grid;gap:10px}
+.portal-task-form input,.portal-task-form textarea,.portal-task-form select{
+  width:100%;border:1px solid var(--line);background:rgba(4,7,5,.52);color:var(--text);
+  border-radius:13px;padding:11px 12px;outline:none
+}
+.portal-task-form textarea{resize:vertical;min-height:110px}
+.portal-task-card{
+  border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:16px;padding:14px;margin-top:10px
+}
+.portal-task-card .task-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.portal-task-card h4{margin:0 0 6px}
+.portal-task-card p{margin:0;color:#b5c0b8;line-height:1.55;font-size:12px;white-space:pre-wrap}
+.portal-task-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+.portal-task-meta span{font-size:10px;border:1px solid var(--line);padding:5px 8px;border-radius:999px;color:var(--muted)}
+.portal-worklog-row{
+  display:grid;grid-template-columns:1fr .8fr .7fr .7fr;gap:12px;padding:12px;border:1px solid var(--line);
+  border-radius:14px;background:rgba(255,255,255,.025);margin-top:8px
+}
+.portal-file-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.portal-account-card{max-width:720px;margin:16px auto 0;border-radius:22px;padding:22px}
+.client-role .sidebar{display:none!important}
+.client-role .app-shell{grid-template-columns:1fr!important}
+.client-role .main{width:100%}
+.client-role .topbar{max-width:1500px;margin:0 auto}
+.client-role #add-client-top{display:none!important}
+.client-role #page-title{font-size:18px}
+.client-role .topbar .eyebrow{display:none}
+.client-role .global-search{display:none}
+.client-role #edit-client-detail{display:none!important}
+.client-role #detail-back{display:none!important}
+.client-role #client-detail-view{display:none!important}
+@media(max-width:900px){
+  .portal-overview-grid{grid-template-columns:1fr}.portal-summary-card.full{grid-column:auto}
+  .portal-kpis{grid-template-columns:1fr 1fr}.portal-file-grid{grid-template-columns:1fr}
+}
+@media(max-width:650px){
+  .client-portal-header{display:block}.client-portal-header #portal-project-status{margin-top:12px}
+  .portal-kpis{grid-template-columns:1fr 1fr}
+  .portal-worklog-row{grid-template-columns:1fr 1fr}
+  .client-portal-nav{top:82px}
+}

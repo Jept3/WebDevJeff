@@ -357,3 +357,130 @@ The cover artwork is used as the main dashboard hero background.
 
 ## Login hotfix v2
 This build fixes a Supabase auth callback deadlock that could leave the login screen on `Signing in...`. It also adds cache-busting query strings for GitHub Pages.
+
+
+## Manual Hours Entry
+
+The Time Log page now supports two ways to record work:
+
+1. **Login / Start → Logout / Stop** for live timer tracking.
+2. **Add Hours Worked** for manual entries.
+
+For a manual entry, select:
+
+- client
+- work date
+- hours worked
+- hourly rate
+- task / description
+
+The amount is calculated automatically.
+
+Example:
+
+`7 hours × $3.00/hour = $21.00`
+
+Manual entries are saved to the same Supabase `time_entries` table and can be included automatically in invoice generation.
+
+
+# Full Dedicated Client Portal + Username-only Login
+
+## Client does NOT need an email address
+
+Client login is now fully controlled by the administrator.
+
+Admin creates:
+
+- Client username
+- Temporary password
+- Portal permission: `Can Edit` or `View Only`
+
+The client only receives:
+
+- Website URL
+- Username
+- Password
+
+They do not need to provide or use an email address for login.
+
+Internally, the Supabase Edge Function creates a hidden Auth identity and links the Auth user directly to the client record through `clients.auth_user_id`.
+
+## Dedicated Client Portal
+
+Client navigation is now:
+
+- Overview
+- Tasks
+- Progress
+- Files
+- Invoices
+- Account
+
+The client does not see the Admin CRM sidebar.
+
+### Overview
+Shows:
+- project status
+- progress
+- open tasks
+- amount due
+- project dates
+- project overview
+- shared information
+
+### Tasks
+Client can send the VA:
+- task title
+- detailed instructions
+- priority
+- due date
+
+The task is stored in Supabase and visible in the project workflow.
+
+### Progress
+Client can review:
+- total worked hours
+- this week's hours
+- work log
+- work description
+- start/finish times
+- project progress
+
+### Files
+Client can open project files.
+When `Can Edit`, they can upload/delete files.
+When `View Only`, uploads are disabled by both UI and RLS.
+
+### Invoices
+Client sees:
+- Incoming invoices
+- Paid invoices
+- hours
+- hourly rate
+- total amount
+- professional invoice preview
+
+### Account
+Client sees:
+- username
+- access level
+- Sign out
+- Change password
+
+## IMPORTANT DATABASE UPDATE
+
+Run the latest `supabase-schema.sql` in Supabase SQL Editor.
+
+This migration adds direct Auth-user linking and updates RLS policies.
+
+## IMPORTANT EDGE FUNCTION UPDATE
+
+Redeploy:
+
+```bash
+supabase functions deploy admin-create-client-user
+```
+
+The updated Edge Function is required for username-only client accounts.
+
+Existing admin login continues using your normal admin email/password.

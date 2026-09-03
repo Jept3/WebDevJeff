@@ -544,3 +544,226 @@ begin
       foreign key (invoice_id) references public.invoices(id) on delete set null;
   end if;
 end $$;
+
+
+-- ============================================================
+-- Jeffdesign101 Full Client Portal + Username-only Login
+-- ============================================================
+
+-- Client accounts now link directly to Auth users.
+alter table public.clients
+  add column if not exists auth_user_id uuid references auth.users(id) on delete set null,
+  add column if not exists login_email text;
+
+create unique index if not exists clients_auth_user_unique
+on public.clients(auth_user_id)
+where auth_user_id is not null;
+
+-- Extra task fields for client-created detailed tasks.
+alter table public.client_tasks
+  add column if not exists details text,
+  add column if not exists priority text default 'Normal',
+  add column if not exists due_date date;
+
+-- Direct account link replaces real-email matching.
+drop policy if exists "clients_admin_select_all_client_select_own" on public.clients;
+create policy "clients_admin_select_all_client_select_own"
+on public.clients for select
+to authenticated
+using (
+  public.is_admin()
+  or (
+    deleted_at is null
+    and auth_user_id = auth.uid()
+  )
+);
+
+-- Client submissions linked by project ownership instead of email.
+drop policy if exists "submissions_insert_own_client" on public.client_submissions;
+create policy "submissions_insert_own_client"
+on public.client_submissions for insert
+to authenticated
+with check (
+  user_id = auth.uid()
+  and exists (
+    select 1 from public.clients c
+    where c.id = client_id
+      and c.deleted_at is null
+      and c.portal_permission = 'edit'
+      and c.auth_user_id = auth.uid()
+  )
+);
+
+drop policy if exists "submissions_update_own" on public.client_submissions;
+create policy "submissions_update_own"
+on public.client_submissions for update
+to authenticated
+using (
+  public.is_admin()
+  or (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.clients c
+      where c.id = client_id
+        and c.portal_permission = 'edit'
+        and c.auth_user_id = auth.uid()
+    )
+  )
+)
+with check (public.is_admin() or user_id = auth.uid());
+
+-- Access helper updated for direct Auth user linkage.
+create or replace function public.can_access_client(target_client uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_admin()
+    or exists (
+      select 1 from public.clients c
+      where c.id = target_client
+        and c.deleted_at is null
+        and c.auth_user_id = auth.uid()
+    );
+$$;
+
+-- Tasks: clients can create detailed tasks for their own project if editing is enabled.
+drop policy if exists "tasks_insert_editable_project" on public.client_tasks;
+create policy "tasks_insert_editable_project"
+on public.client_tasks for insert
+to authenticated
+with check (
+  public.is_admin()
+  or (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.clients c
+      where c.id = client_id
+        and c.deleted_at is null
+        and c.portal_permission = 'edit'
+        and c.auth_user_id = auth.uid()
+    )
+  )
+);
+
+drop policy if exists "tasks_update_editable_project" on public.client_tasks;
+create policy "tasks_update_editable_project"
+on public.client_tasks for update
+to authenticated
+using (
+  public.is_admin()
+  or (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.clients c
+      where c.id = client_id
+        and c.portal_permission = 'edit'
+        and c.auth_user_id = auth.uid()
+    )
+  )
+)
+with check (public.is_admin() or user_id = auth.uid());
+
+drop policy if exists "tasks_delete_editable_project" on public.client_tasks;
+create policy "tasks_delete_editable_project"
+on public.client_tasks for delete
+to authenticated
+using (
+  public.is_admin()
+  or (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.clients c
+      where c.id = client_id
+        and c.portal_permission = 'edit'
+        and c.auth_user_id = auth.uid()
+    )
+  )
+);
+
+-- Time logs visible to directly linked client.
+drop policy if exists "time_entries_client_view_own_project" on public.time_entries;
+create policy "time_entries_client_view_own_project"
+on public.time_entries for select
+to authenticated
+using (
+  exists (
+    select 1 from public.clients c
+    where c.id=time_entries.client_id
+      and c.deleted_at is null
+      and c.auth_user_id=auth.uid()
+  )
+);
+
+-- Invoices visible to directly linked client.
+drop policy if exists "invoices_client_view_own" on public.invoices;
+create policy "invoices_client_view_own"
+on public.invoices for select
+to authenticated
+using (
+  exists (
+    select 1 from public.clients c
+    where c.id=invoices.client_id
+      and c.deleted_at is null
+      and c.auth_user_id=auth.uid()
+  )
+);
+
+-- Storage permissions use direct linked Auth account.
+drop policy if exists "client_files_insert" on storage.objects;
+create policy "client_files_insert"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'client-files'
+  and (
+    public.is_admin()
+    or exists (
+      select 1 from public.clients c
+      where c.id = ((storage.foldername(name))[1])::uuid
+        and c.deleted_at is null
+        and c.portal_permission = 'edit'
+        and c.auth_user_id = auth.uid()
+    )
+  )
+);
+
+drop policy if exists "client_files_delete" on storage.objects;
+create policy "client_files_delete"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'client-files'
+  and (
+    public.is_admin()
+    or exists (
+      select 1 from public.clients c
+      where c.id = ((storage.foldername(name))[1])::uuid
+        and c.deleted_at is null
+        and c.portal_permission = 'edit'
+        and c.auth_user_id = auth.uid()
+    )
+  )
+);
+
+-- Username login resolver returns the hidden internal Auth email.
+create or replace function public.resolve_login_email(login_name text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select login_email
+  from public.clients
+  where deleted_at is null
+    and client_username is not null
+    and lower(client_username) = lower(login_name)
+    and login_email is not null
+  limit 1;
+$$;
+
+revoke all on function public.resolve_login_email(text) from public;
+grant execute on function public.resolve_login_email(text) to anon, authenticated;

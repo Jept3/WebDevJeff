@@ -62,7 +62,7 @@ function fromRow(r){
     projectType:r.project_type||'',status:r.status||'ongoing',priority:r.priority||'Normal',
     startDate:r.start_date||'',deadline:r.deadline||'',completedDate:r.completed_date||'',budget:r.budget||'',
     overview:r.overview||'',hosting:r.hosting||'',stack:r.stack||'',registrar:r.registrar||'',contact:r.contact||'',
-    deliverables:r.deliverables||'',notes:r.notes||'',tags:r.tags||[],clientUsername:r.client_username||'',permission:r.portal_permission||'edit',deletedAt:r.deleted_at||'',
+    deliverables:r.deliverables||'',notes:r.notes||'',tags:r.tags||[],clientUsername:r.client_username||'',permission:r.portal_permission||'edit',authUserId:r.auth_user_id||null,deletedAt:r.deleted_at||'',
     createdAt:r.created_at,updatedAt:r.updated_at
   };
 }
@@ -120,12 +120,11 @@ async function onSignedIn(){
     setView('dashboard');
   }else if(clients[0]){
     activeClientId=clients[0].id;
-    renderClientDetail(clients[0]);
-    setView('client-detail');
+    renderClientPortal('client-home');
   }else{
     activeClientId=null;
-    els.clientDetail.innerHTML=`<article class="panel glass"><div class="empty"><strong>No client record is linked yet</strong>Your account email is <b>${esc(session.user.email)}</b>. Ask the administrator to create a client record using this exact email address.</div></article>`;
-    setView('client-detail');
+    $('client-home-content').innerHTML=`<article class="panel glass"><div class="empty"><strong>No client project linked yet</strong>Please contact Jeffdesign101 so your account can be connected to a project.</div></article>`;
+    setView('client-home');
   }
 }
 async function initializeAuth(){
@@ -240,6 +239,52 @@ async function clockOut(){
   if(error){showToast(error.message);return}
   timeEntries=timeEntries.map(x=>x.id===data.id?data:x);workSession=null;startLiveTimer();renderTimePage();renderInvoicesPage();showToast('Work session stopped');
 }
+
+function updateManualAmount(){
+  const hours=Number($('manual-hours')?.value||0);
+  const rate=Number($('manual-rate')?.value||billingSettings?.hourly_rate||3);
+  const amount=$('manual-amount');
+  if(amount) amount.textContent=money(hours*rate);
+}
+
+async function addManualHours(){
+  if(currentRole!=='admin')return;
+  const clientId=$('manual-client')?.value;
+  const date=$('manual-date')?.value;
+  const hours=Number($('manual-hours')?.value||0);
+  const rate=Number($('manual-rate')?.value||billingSettings?.hourly_rate||3);
+  const task=$('manual-task')?.value.trim()||'Manual work entry';
+
+  if(!clientId){showToast('Select a client');return}
+  if(!date){showToast('Select the work date');return}
+  if(!hours || hours<=0){showToast('Enter the number of hours worked');return}
+
+  // Store a completed time entry so it works with invoice generation exactly
+  // like a timer-based entry.
+  const startLocal=new Date(`${date}T09:00:00`);
+  const endLocal=new Date(startLocal.getTime()+hours*3600000);
+
+  const {data,error}=await sb.from('time_entries').insert({
+    user_id:session.user.id,
+    client_id:clientId,
+    task,
+    clock_in:startLocal.toISOString(),
+    clock_out:endLocal.toISOString(),
+    hours,
+    hourly_rate:rate
+  }).select().single();
+
+  if(error){showToast(error.message);return}
+
+  timeEntries.unshift(data);
+  $('manual-hours').value='';
+  $('manual-task').value='';
+  updateManualAmount();
+  renderTimePage();
+  renderInvoicesPage();
+  showToast(`${hours.toFixed(2)} hours added`);
+}
+
 function renderTimePage(){
   if(!$('time-entry-list')||currentRole!=='admin')return;
   const rate=Number(billingSettings?.hourly_rate||3),now=new Date(),today=now.toISOString().slice(0,10),week=startOfWeek(now);
@@ -251,6 +296,16 @@ function renderTimePage(){
   $('timer-client-label').textContent=workSession?`Working on ${clients.find(c=>c.id===workSession.client_id)?.name||'client'} since ${new Date(workSession.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`:'Select a client before starting work.';
   $('clock-in').disabled=!!workSession;$('clock-out').disabled=!workSession;
   $('timer-client').innerHTML='<option value="">Select client…</option>'+clients.map(c=>`<option value="${c.id}" ${workSession?.client_id===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+
+  if($('manual-client')){
+    const previous=$('manual-client').value;
+    $('manual-client').innerHTML='<option value="">Select client…</option>'+clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    if(previous) $('manual-client').value=previous;
+    if(!$('manual-date').value) $('manual-date').value=new Date().toISOString().slice(0,10);
+    if(!$('manual-rate').value) $('manual-rate').value=rate.toFixed(2);
+    updateManualAmount();
+  }
+
   $('time-entry-list').innerHTML=timeEntries.length?timeEntries.map(e=>{
     const c=clients.find(x=>x.id===e.client_id)||{};
     return `<div class="invoice-row"><div><strong>${esc(c.name||'Client')}</strong><small>${esc(e.task||'General work')}</small></div><div><strong>${esc(new Date(e.clock_in).toLocaleDateString())}</strong><small>${esc(new Date(e.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}${e.clock_out?' → '+esc(new Date(e.clock_out).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})):' → active'}</small></div><div><strong>${timeEntryHours(e).toFixed(2)} hrs</strong><small>${money(e.hourly_rate||rate)}/hr</small></div><div class="invoice-amount">${money(timeEntryHours(e)*Number(e.hourly_rate||rate))}</div><div>${e.invoice_id?'<span class="invoice-status paid">Invoiced</span>':'<span class="invoice-status draft">Uninvoiced</span>'}</div></div>`;
@@ -340,13 +395,213 @@ async function markInvoicePaid(id){
 
 
 function setView(view){
-  if(currentRole!=='admin' && ['dashboard','projects','trash','clients','time','settings'].includes(view)){
-    view='client-detail';
+  if(currentRole!=='admin' && ['dashboard','projects','trash','clients','time','settings','invoices','client-detail'].includes(view)){
+    view='client-home';
   }
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  
+function portalClient(){
+  return clients.find(c=>c.id===activeClientId)||clients[0]||null;
+}
+function projectProgress(status){
+  return {ongoing:35,review:75,waiting:55,complete:100,paused:45}[status]||20;
+}
+async function renderClientPortal(view='client-home'){
+  if(currentRole==='admin')return;
+  const c=portalClient();
+  if(!c){setView('client-home');return}
+  activeClientId=c.id;
+
+  if($('portal-client-name')) $('portal-client-name').textContent=c.name||'My Project';
+  if($('portal-client-subtitle')) $('portal-client-subtitle').textContent=c.projectType||c.company||'Jeffdesign101 project workspace';
+  if($('portal-project-status')) $('portal-project-status').innerHTML=statusChip(c.status);
+
+  document.querySelectorAll('.client-tab').forEach(b=>b.classList.toggle('active',b.dataset.clientView===view));
+  const canEdit=c.permission!=='view';
+
+  if(view==='client-home') await renderClientOverview(c,canEdit);
+  if(view==='client-tasks') await renderClientTasksPage(c,canEdit);
+  if(view==='client-progress') await renderClientProgressPage(c);
+  if(view==='client-files') await renderClientFilesPage(c,canEdit);
+  if(view==='client-invoices') await renderClientInvoicesPage(c);
+  if(view==='client-account') renderClientAccountPage(c);
+
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   $(`${view}-view`)?.classList.add('active');
-  const titles={dashboard:'Dashboard',clients:'Client Directory',projects:'Project Monitoring',time:'Time Log',invoices:'Invoices',settings:'Rate & Billing',trash:'Trash','client-detail':currentRole==='admin'?'Client Details':'My Project Portal'};
+  els.pageTitle.textContent={ 'client-home':'My Project','client-tasks':'Tasks','client-progress':'Progress','client-files':'Files','client-invoices':'Invoices','client-account':'Account'}[view]||'Client Portal';
+}
+
+async function renderClientOverview(c,canEdit){
+  const submission=await getSubmission(c.id).catch(()=>null);
+  const tasksRes=await sb.from('client_tasks').select('*').eq('client_id',c.id).order('created_at',{ascending:false});
+  const tasks=tasksRes.data||[];
+  const myInvoices=invoices.filter(i=>i.client_id===c.id);
+  const unpaid=myInvoices.filter(i=>i.status==='pending').reduce((s,i)=>s+Number(i.total||0),0);
+  const progress=projectProgress(c.status);
+  $('client-home-content').innerHTML=`
+    ${!canEdit?`<div class="readonly-banner" style="margin-top:16px">Your portal is currently <b>View Only</b>. You can review progress, files and invoices, but editing is disabled.</div>`:''}
+    <div class="portal-kpis">
+      <div class="portal-kpi"><span>Status</span><strong>${esc(statusLabels[c.status]||c.status)}</strong></div>
+      <div class="portal-kpi"><span>Progress</span><strong>${progress}%</strong></div>
+      <div class="portal-kpi"><span>Open tasks</span><strong>${tasks.filter(t=>!t.done).length}</strong></div>
+      <div class="portal-kpi"><span>Amount due</span><strong>${money(unpaid)}</strong></div>
+    </div>
+    <div class="portal-overview-grid">
+      <article class="portal-summary-card glass">
+        <p class="eyebrow">PROJECT</p><h3>${esc(c.projectType||'Website Project')}</h3>
+        <div class="project-progress"><span style="width:${progress}%"></span></div>
+        <div class="info-grid" style="margin-top:18px">
+          <div class="info-item"><span>Started</span><strong>${esc(fmtDate(c.startDate))}</strong></div>
+          <div class="info-item"><span>Deadline</span><strong>${esc(fmtDate(c.deadline))}</strong></div>
+          <div class="info-item"><span>Priority</span><strong>${esc(c.priority||'Normal')}</strong></div>
+          <div class="info-item"><span>Website</span>${c.website?`<a href="${esc(websiteHref(c.website))}" target="_blank" rel="noopener">${esc(c.website)}</a>`:'<strong>—</strong>'}</div>
+        </div>
+      </article>
+      <article class="portal-summary-card glass">
+        <p class="eyebrow">NEXT TASKS</p><h3>Current requests</h3>
+        ${tasks.slice(0,4).map(t=>`<div class="task-entry"><input type="checkbox" ${t.done?'checked':''} disabled><div><strong>${esc(t.task)}</strong><small>${t.done?'Completed':'Open'}</small></div></div>`).join('')||'<div class="muted">No tasks yet.</div>'}
+      </article>
+      <article class="portal-summary-card glass full">
+        <p class="eyebrow">OVERVIEW</p><h3>Project information</h3>
+        <div class="prose">${esc(c.overview||'No overview added yet.')}</div>
+      </article>
+      <article class="portal-summary-card glass full">
+        <p class="eyebrow">LATEST INFORMATION</p><h3>Shared project notes</h3>
+        <div class="prose">${submission?.info_html||esc(submission?.info||'No shared information yet.')}</div>
+      </article>
+    </div>`;
+}
+
+async function renderClientTasksPage(c,canEdit){
+  const {data,error}=await sb.from('client_tasks').select('*').eq('client_id',c.id).order('created_at',{ascending:false});
+  const tasks=data||[];
+  $('client-tasks-content').innerHTML=`
+    <div class="portal-overview-grid">
+      ${canEdit?`<article class="portal-summary-card glass">
+        <p class="eyebrow">NEW TASK</p><h3>Send a task to your VA</h3>
+        <div class="portal-task-form">
+          <input id="portal-task-title" placeholder="Task title">
+          <textarea id="portal-task-details" placeholder="Detailed instructions, checklist, links, requirements..."></textarea>
+          <div class="form-grid">
+            <label><span>Priority</span><select id="portal-task-priority"><option>Normal</option><option>High</option><option>Urgent</option><option>Low</option></select></label>
+            <label><span>Due date</span><input id="portal-task-due" type="date"></label>
+          </div>
+          <button id="portal-add-task" class="btn btn-primary">＋ Send Task</button>
+        </div>
+      </article>`:''}
+      <article class="portal-summary-card glass ${canEdit?'':'full'}">
+        <p class="eyebrow">TASK STATUS</p><h3>${tasks.filter(t=>!t.done).length} open · ${tasks.filter(t=>t.done).length} completed</h3>
+        <div class="project-progress"><span style="width:${tasks.length?Math.round(tasks.filter(t=>t.done).length/tasks.length*100):0}%"></span></div>
+      </article>
+      <article class="portal-summary-card glass full">
+        <p class="eyebrow">ALL TASKS</p><h3>Task history</h3>
+        <div id="portal-task-list">
+          ${tasks.length?tasks.map(t=>`<div class="portal-task-card">
+            <div class="task-top"><div><h4>${esc(t.task)}</h4><p>${esc(t.details||'')}</p></div><span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span></div>
+            <div class="portal-task-meta"><span>${esc(t.priority||'Normal')}</span>${t.due_date?`<span>Due ${esc(fmtDate(t.due_date))}</span>`:''}<span>${esc(fmtUpdated(t.created_at))}</span></div>
+          </div>`).join(''):'<div class="empty"><strong>No tasks yet</strong>Create the first task for your VA.</div>'}
+        </div>
+      </article>
+    </div>`;
+  if(canEdit){
+    $('portal-add-task')?.addEventListener('click',async()=>{
+      const title=$('portal-task-title').value.trim();
+      if(!title){showToast('Add a task title');return}
+      const {error}=await sb.from('client_tasks').insert({
+        client_id:c.id,user_id:session.user.id,task:title,details:$('portal-task-details').value.trim(),
+        priority:$('portal-task-priority').value,due_date:$('portal-task-due').value||null
+      });
+      if(error){showToast(error.message);return}
+      showToast('Task sent');await renderClientTasksPage(c,canEdit);
+    });
+  }
+}
+
+async function renderClientProgressPage(c){
+  const entries=timeEntries.filter(e=>e.client_id===c.id);
+  const totalH=entries.reduce((s,e)=>s+timeEntryHours(e),0);
+  const week=startOfWeek(new Date());
+  const weekH=entries.filter(e=>new Date(e.clock_in)>=week).reduce((s,e)=>s+timeEntryHours(e),0);
+  const progress=projectProgress(c.status);
+  $('client-progress-content').innerHTML=`
+    <div class="portal-kpis">
+      <div class="portal-kpi"><span>Project progress</span><strong>${progress}%</strong></div>
+      <div class="portal-kpi"><span>Total work</span><strong>${totalH.toFixed(2)}h</strong></div>
+      <div class="portal-kpi"><span>This week</span><strong>${weekH.toFixed(2)}h</strong></div>
+      <div class="portal-kpi"><span>Status</span><strong>${esc(statusLabels[c.status]||c.status)}</strong></div>
+    </div>
+    <article class="portal-summary-card glass" style="margin-top:16px">
+      <p class="eyebrow">WORK LOG</p><h3>VA progress history</h3>
+      ${entries.length?entries.map(e=>`<div class="portal-worklog-row">
+        <div><strong>${esc(e.task||'General work')}</strong><small class="muted">${esc(new Date(e.clock_in).toLocaleDateString())}</small></div>
+        <div><span class="muted">Hours</span><strong>${timeEntryHours(e).toFixed(2)}h</strong></div>
+        <div><span class="muted">Started</span><strong>${esc(new Date(e.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}</strong></div>
+        <div><span class="muted">Finished</span><strong>${e.clock_out?esc(new Date(e.clock_out).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})):'Active'}</strong></div>
+      </div>`).join(''):'<div class="empty"><strong>No work logged yet</strong>Your VA work history will appear here.</div>'}
+    </article>`;
+}
+
+async function renderClientFilesPage(c,canEdit){
+  const files=await listFiles(c.id).catch(()=>[]);
+  $('client-files-content').innerHTML=`
+    <article class="portal-summary-card glass" style="margin-top:16px">
+      <div class="panel-head"><div><p class="eyebrow">PROJECT FILES</p><h3>Shared documents</h3></div>
+      ${canEdit?`<label class="btn btn-primary">＋ Upload Files<input id="portal-file-upload" type="file" multiple hidden></label>`:''}</div>
+      <div class="portal-file-grid">
+        ${files.length?files.map(f=>`<div class="attachment"><div class="file-meta"><strong>${esc(f.name.replace(/^\d+-[a-z0-9]+-/,''))}</strong><small>${esc(humanSize(f.metadata?.size||0))}</small></div><div class="file-actions"><button class="mini-btn" data-open-file="${esc(c.id+'/'+f.name)}">Open</button>${canEdit?`<button class="mini-btn delete" data-delete-cloud-file="${esc(c.id+'/'+f.name)}">Delete</button>`:''}</div></div>`).join(''):'<div class="empty"><strong>No files yet</strong>Project files will appear here.</div>'}
+      </div>
+    </article>`;
+  if(canEdit){
+    $('portal-file-upload')?.addEventListener('change',async e=>{
+      if(e.target.files?.length){await uploadFiles(c.id,[...e.target.files]);await renderClientFilesPage(c,canEdit)}
+    });
+  }
+}
+
+async function renderClientInvoicesPage(c){
+  const list=invoices.filter(i=>i.client_id===c.id);
+  const pending=list.filter(i=>i.status==='pending'),paid=list.filter(i=>i.status==='paid');
+  $('client-invoices-content').innerHTML=`
+    <div class="portal-kpis">
+      <div class="portal-kpi"><span>Incoming</span><strong>${pending.length}</strong></div>
+      <div class="portal-kpi"><span>Amount due</span><strong>${money(pending.reduce((s,i)=>s+Number(i.total||0),0))}</strong></div>
+      <div class="portal-kpi"><span>Paid invoices</span><strong>${paid.length}</strong></div>
+      <div class="portal-kpi"><span>Total paid</span><strong>${money(paid.reduce((s,i)=>s+Number(i.total||0),0))}</strong></div>
+    </div>
+    <article class="portal-summary-card glass" style="margin-top:16px">
+      <p class="eyebrow">INVOICES</p><h3>Billing history</h3>
+      <div class="invoice-list">
+        ${list.length?list.map(i=>`<div class="invoice-row"><div><strong>${esc(i.invoice_number)}</strong><small>${esc(i.description||'Online Work')}</small></div><div><strong>${esc(fmtDate(i.invoice_date))}</strong><small>${Number(i.hours||0).toFixed(2)} hrs</small></div><div><strong>${money(i.hourly_rate)}/hr</strong></div><div class="invoice-amount">${money(i.total)}</div><div class="row-actions"><span class="invoice-status ${esc(i.status)}">${i.status==='paid'?'Paid':'Incoming'}</span><button class="mini-btn" data-view-invoice="${i.id}">View</button></div></div>`).join(''):'<div class="empty"><strong>No invoices yet</strong>Your invoices will appear here.</div>'}
+      </div>
+    </article>`;
+}
+
+function renderClientAccountPage(c){
+  $('client-account-content').innerHTML=`
+    <article class="portal-account-card glass">
+      <p class="eyebrow">ACCOUNT</p><h3 style="margin-top:0">Client Login</h3>
+      <div class="info-grid">
+        <div class="info-item"><span>Username</span><strong>${esc(c.clientUsername||'—')}</strong></div>
+        <div class="info-item"><span>Access</span><strong>${c.permission==='view'?'View Only':'Can Edit'}</strong></div>
+      </div>
+      <div style="margin-top:20px">
+        <label><span>New password</span><input id="client-new-password" type="password" placeholder="At least 8 characters"></label>
+      </div>
+      <div class="modal-actions"><button id="client-signout" class="btn btn-ghost">Sign out</button><button id="client-change-password" class="btn btn-primary">Change Password</button></div>
+    </article>`;
+  $('client-signout')?.addEventListener('click',()=>sb.auth.signOut());
+  $('client-change-password')?.addEventListener('click',async()=>{
+    const password=$('client-new-password').value;
+    if(password.length<8){showToast('Use at least 8 characters');return}
+    const {error}=await sb.auth.updateUser({password});
+    if(error){showToast(error.message);return}
+    $('client-new-password').value='';showToast('Password updated');
+  });
+}
+
+document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  $(`${view}-view`)?.classList.add('active');
+  const titles={dashboard:'Dashboard',clients:'Client Directory',projects:'Project Monitoring',time:'Time Log',invoices:'Invoices',settings:'Rate & Billing',trash:'Trash','client-detail':'Client Details','client-home':'My Project','client-tasks':'Tasks','client-progress':'Progress','client-files':'Files','client-invoices':'Invoices','client-account':'Account'};
   els.pageTitle.textContent=titles[view]||'Jeffdesign101';
   if(view==='clients')renderClients();
   if(view==='projects')renderProjectBoard();
@@ -355,6 +610,7 @@ function setView(view){
   if(view==='invoices')renderInvoicesPage();
   if(view==='settings')renderBillingSettings();
   if(view==='dashboard')updateDashboard();
+  if(view.startsWith('client-') && view!=='client-detail' && currentRole!=='admin') renderClientPortal(view);
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -670,7 +926,7 @@ function collectForm(){
   const c={};Object.entries(fields).forEach(([key,id])=>{let v=$(id).value.trim();if(key==='tags')v=v.split(',').map(x=>x.trim()).filter(Boolean);c[key]=v});return c;
 }
 async function saveForm(show=true){
-  if(currentRole!=='admin'||!$('client-name').value.trim()||!$('client-email').value.trim())return null;
+  if(currentRole!=='admin'||!$('client-name').value.trim())return null;
   const id=$('client-id').value,c=collectForm(),row=toRow(c);
   let result;
   if(id)result=await sb.from('clients').update(row).eq('id',id).select().single();
@@ -751,6 +1007,10 @@ async function emptyTrash(){
 function globalSearch(q){if(!q.trim()||currentRole!=='admin')return;setView('clients');els.clientSearch.value=q;renderClients(q)}
 
 document.querySelectorAll('.nav-link').forEach(btn=>btn.addEventListener('click',()=>setView(btn.dataset.view)));
+document.addEventListener('click',e=>{
+  const tab=e.target.closest('[data-client-view]');
+  if(tab && currentRole!=='admin') renderClientPortal(tab.dataset.clientView);
+});
 document.addEventListener('click',async e=>{
   const edit=e.target.closest('[data-edit-client]');if(edit){await openModal(edit.dataset.editClient);return}
   const del=e.target.closest('[data-trash-client]');if(del){if(confirm('Move this client to Trash?'))await moveToTrash(del.dataset.trashClient);return}
@@ -817,6 +1077,9 @@ $('sign-out')?.addEventListener('click',()=>sb?.auth.signOut());
 $('save-billing-settings')?.addEventListener('click',saveBillingSettings);
 $('clock-in')?.addEventListener('click',clockIn);
 $('clock-out')?.addEventListener('click',clockOut);
+$('add-manual-hours')?.addEventListener('click',addManualHours);
+$('manual-hours')?.addEventListener('input',updateManualAmount);
+$('manual-rate')?.addEventListener('input',updateManualAmount);
 ['invoice-client','invoice-start','invoice-end','invoice-rate'].forEach(id=>$(id)?.addEventListener('input',updateInvoicePreviewNumbers));
 $('preview-invoice')?.addEventListener('click',previewInvoiceDraft);
 $('create-invoice')?.addEventListener('click',createInvoice);

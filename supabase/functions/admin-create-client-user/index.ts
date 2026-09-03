@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+function normalizeUsername(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 48);
+}
+
 Deno.serve(async (req) => {
   const cors = {
     "Access-Control-Allow-Origin": "*",
@@ -23,44 +27,63 @@ Deno.serve(async (req) => {
     if (profile?.role !== "admin") throw new Error("Admin access required.");
 
     const { clientId, username, password } = await req.json();
-    if (!clientId || !username || !password || password.length < 8) throw new Error("Invalid request.");
+    const cleanUsername = normalizeUsername(username || "");
 
-    const { data: client, error: clientError } = await admin.from("clients")
-      .select("id,email,client_username").eq("id", clientId).single();
-    if (clientError || !client) throw new Error("Client not found.");
-
-    const email = client.email;
-    if (!email) throw new Error("Client needs an email address.");
-
-    // Find existing auth user by paging users; suitable for a small CRM.
-    let existing: any = null;
-    for (let page = 1; page <= 20 && !existing; page++) {
-      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 100 });
-      if (error) throw error;
-      existing = data.users.find((u) => (u.email || "").toLowerCase() === email.toLowerCase());
-      if (data.users.length < 100) break;
+    if (!clientId || !cleanUsername || !password || password.length < 8) {
+      throw new Error("Client, username, and password of at least 8 characters are required.");
     }
 
-    if (existing) {
-      const { error } = await admin.auth.admin.updateUserById(existing.id, {
+    // Prevent duplicate username on another client.
+    const { data: duplicate } = await admin.from("clients")
+      .select("id").ilike("client_username", cleanUsername).neq("id", clientId).maybeSingle();
+    if (duplicate) throw new Error("That username is already in use.");
+
+    const { data: client, error: clientError } = await admin.from("clients")
+      .select("id,auth_user_id,login_email").eq("id", clientId).single();
+    if (clientError || !client) throw new Error("Client not found.");
+
+    // Hidden internal email. Client never needs to know or use this.
+    const internalEmail = client.login_email || `${cleanUsername}.${clientId.slice(0,8)}@login.jeffdesign101.invalid`;
+
+    let authUserId = client.auth_user_id;
+
+    if (authUserId) {
+      const { error } = await admin.auth.admin.updateUserById(authUserId, {
+        email: internalEmail,
         password,
         email_confirm: true,
       });
       if (error) throw error;
     } else {
-      const { error } = await admin.auth.admin.createUser({
-        email,
+      const { data: created, error } = await admin.auth.admin.createUser({
+        email: internalEmail,
         password,
         email_confirm: true,
+        user_metadata: { client_username: cleanUsername, client_id: clientId },
       });
       if (error) throw error;
+      authUserId = created.user.id;
     }
 
-    const { error: updateError } = await admin.from("clients")
-      .update({ client_username: username }).eq("id", clientId);
+    const { error: updateError } = await admin.from("clients").update({
+      client_username: cleanUsername,
+      auth_user_id: authUserId,
+      login_email: internalEmail,
+    }).eq("id", clientId);
     if (updateError) throw updateError;
 
-    return new Response(JSON.stringify({ ok: true, username }), {
+    // Ensure this account stays a client role.
+    await admin.from("profiles").upsert({
+      id: authUserId,
+      email: internalEmail,
+      role: "client",
+    }, { onConflict: "id" });
+
+    return new Response(JSON.stringify({
+      ok: true,
+      username: cleanUsername,
+      authUserId,
+    }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err) {
