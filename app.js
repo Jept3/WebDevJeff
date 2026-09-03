@@ -1,4 +1,4 @@
-const BUILD="v2.8-mobile-scroll";
+const BUILD="v2.9-admin-task-scroll";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -480,7 +480,14 @@ async function restoreClient(id){const {error}=await state.sb.from("clients").up
 async function employerStatus(status){const c=currentClient();const {error}=await state.sb.from("clients").update({status}).eq("id",c.id);if(error)return toast(error.message);c.status=status;renderEmployerOverview()}
 async function changePassword(){const p=$("newEmployerPassword").value;if(p.length<8)return toast("Use at least 8 characters");const {error}=await state.sb.auth.updateUser({password:p});if(error)return toast(error.message);toast("Password changed")}
 
-function openModal(id){const el=$(id);if(!el)return;el.classList.remove("hidden");requestAnimationFrame(()=>el.classList.add("is-open"));document.body.classList.add("modal-open")}
+function openModal(id){
+  const el=$(id);if(!el)return;
+  el.classList.remove("hidden");
+  el.scrollTop=0;
+  const inner=el.querySelector(".modal");if(inner)inner.scrollTop=0;
+  requestAnimationFrame(()=>el.classList.add("is-open"));
+  document.body.classList.add("modal-open");
+}
 function closeModal(id){const el=$(id);if(!el)return;el.classList.remove("is-open");el.classList.add("hidden");if(!$$(".modal-backdrop:not(.hidden)").length)document.body.classList.remove("modal-open")}
 function stopTicker(){if(state.timer){clearInterval(state.timer);state.timer=null}}
 function startTicker(){

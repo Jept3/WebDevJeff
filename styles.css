@@ -512,3 +512,86 @@ body{min-height:100%;overflow-x:hidden;overscroll-behavior-y:auto;touch-action:p
   .task-preview{font-size:13px;line-height:1.65}
   .task-card{padding-bottom:18px}
 }
+
+
+/* ---------- v2.9 Admin Task Info mobile scroll fix ---------- */
+#taskModal{
+  overscroll-behavior:contain;
+  touch-action:pan-y;
+}
+#taskModalBody{
+  min-width:0;
+  overflow:visible;
+  touch-action:pan-y;
+}
+#taskModalBody .card{
+  overflow:visible!important;
+  max-width:100%;
+  min-width:0;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+#taskModalBody img,
+#taskModalBody video,
+#taskModalBody iframe,
+#taskModalBody table{
+  max-width:100%;
+}
+#taskModalBody pre{
+  max-width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+
+@media(max-width:950px){
+  /* On iOS/Safari, scroll the fixed backdrop instead of nesting the scroll
+     inside the glass panel. This prevents the Admin task detail from getting
+     stuck halfway through a long request. */
+  #taskModal.modal-backdrop{
+    display:block;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
+    overscroll-behavior-y:contain;
+    padding:max(8px,env(safe-area-inset-top)) 8px max(28px,calc(env(safe-area-inset-bottom) + 18px));
+  }
+  #taskModal > .modal.glass{
+    width:min(100%,900px);
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+    margin:0 auto;
+    touch-action:pan-y;
+  }
+  #taskModal .modal-head{
+    position:sticky;
+    top:0;
+    z-index:5;
+    margin:-15px -15px 14px;
+    padding:15px;
+    background:linear-gradient(180deg,rgba(12,21,16,.98),rgba(12,21,16,.90));
+    border-bottom:1px solid rgba(255,255,255,.08);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+  }
+  #taskModal .modal-actions{
+    padding-bottom:calc(10px + env(safe-area-inset-bottom));
+  }
+  #taskModalBody .info-grid{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
+@media(max-width:620px){
+  #taskModal > .modal.glass{
+    border-radius:18px;
+  }
+  #taskModalBody .info-grid{
+    grid-template-columns:1fr;
+  }
+  #taskModalBody .card{
+    padding:15px;
+  }
+}

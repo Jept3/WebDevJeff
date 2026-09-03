@@ -77,3 +77,10 @@ Because this is a static frontend, serve the directory with any local static ser
 - Added iOS momentum scrolling and safe-area-aware modal heights.
 - Expanded task previews now fully reveal content.
 - Updated PWA cache version so installed apps receive the fix.
+
+
+## v2.9 Admin mobile task scroll fix
+- Admin Task Info now scrolls using the modal backdrop on mobile/iOS.
+- Long task instructions and action buttons remain reachable by touch.
+- Sticky task header keeps the close control reachable while scrolling.
+- PWA cache version bumped so installed apps receive the fix.
