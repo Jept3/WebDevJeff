@@ -1038,3 +1038,89 @@ body.auth-loading #login-screen .login-card{
   .active-session-card{grid-template-columns:1fr 1fr}
   .active-session-card .row-actions{grid-column:1/-1;justify-content:flex-start}
 }
+
+
+/* Word-like task editor */
+.task-rich-wrap{
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+  background:rgba(4,7,5,.52);
+}
+.task-rich-toolbar{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  padding:8px;
+  border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.025);
+}
+.task-rich-editor{
+  min-height:150px;
+  padding:12px;
+  outline:none;
+  line-height:1.65;
+  color:var(--text);
+  overflow-wrap:anywhere;
+}
+.task-rich-editor:empty:before{
+  content:attr(data-placeholder);
+  color:#66736a;
+}
+.task-rich-editor a{
+  color:var(--lime);
+  text-decoration:underline;
+}
+.task-rich-editor mark{
+  background:rgba(186,255,58,.28);
+  color:#efffd3;
+}
+
+/* Floating status controls */
+.employer-floating-status{
+  cursor:default;
+  grid-template-columns:auto auto 1fr auto auto;
+}
+.floating-drag-handle{
+  cursor:grab;
+  color:var(--muted);
+  user-select:none;
+  padding:4px 2px;
+}
+.floating-drag-handle:active{cursor:grabbing}
+.floating-close{
+  width:30px;height:30px;
+}
+.floating-restore{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  z-index:900;
+  border:1px solid rgba(186,255,58,.24);
+  background:rgba(11,17,13,.92);
+  color:var(--lime);
+  border-radius:999px;
+  padding:9px 12px;
+  font-size:11px;
+  font-weight:850;
+  box-shadow:0 16px 40px rgba(0,0,0,.28);
+}
+
+/* Stronger invoice modal */
+.invoice-preview-modal{
+  width:min(1050px,calc(100vw - 28px));
+  max-height:92vh;
+  overflow:auto;
+}
+.invoice-paper{
+  min-width:0;
+}
+.invoice-meta-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px 14px;
+}
+@media(max-width:700px){
+  .invoice-preview-modal{width:calc(100vw - 16px)}
+  .employer-floating-status{min-width:210px}
+}

@@ -723,18 +723,21 @@
   </div>
 
 
-  <div id="employer-floating-status" class="employer-floating-status hidden">
+  <div id="employer-floating-status" class="employer-floating-status hidden" title="Drag to move">
+    <div id="employer-floating-drag" class="floating-drag-handle">⋮⋮</div>
     <span id="employer-floating-dot" class="work-status-dot"></span>
     <div>
       <strong id="employer-floating-label">VA Offline</strong>
       <small id="employer-floating-time">00:00:00</small>
     </div>
     <button id="employer-floating-open" class="mini-btn">View</button>
+    <button id="employer-floating-close" class="icon-btn floating-close" title="Hide">×</button>
   </div>
+  <button id="employer-floating-restore" class="floating-restore hidden">VA Status</button>
 
   <div id="toast" class="toast"></div>
   <script src="config.js?v=20260903stable"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=stable-login-20260903"></script>
+  <script src="app.js?v=richtext-invoice-ui-20260903"></script>
 </body>
 </html>

@@ -755,3 +755,43 @@ The app now:
 - loads the workspace immediately after successful password authentication instead of depending only on the auth-state callback
 
 No SQL or Edge Function change is required.
+
+
+# Rich Task Editor + Invoice Popup + Floating Status Controls
+
+## Task editor
+Employer task description now includes Word-like controls:
+- Bold
+- Italic
+- Underline
+- Highlight
+- Bullet list
+- Numbered list
+- Link
+- Clear formatting
+
+Task formatting is stored with the task and displayed in task previews/details.
+
+## Invoice popup
+Invoice View now uses a robust ID-based loader for both Admin and Employer. If the invoice is not already in local memory, it fetches it from Supabase before opening the modal.
+
+Invoice popup includes:
+- VA/business details
+- Bill To client/employer details
+- invoice number
+- invoice date
+- work period
+- hours
+- hourly rate
+- total
+- payment notes
+- payment status
+
+## Floating VA status
+Employer floating work status can now:
+- be dragged anywhere on screen
+- be closed with X
+- be restored using the small VA Status button
+- remember hidden state for that browser
+
+No SQL migration is required for these UI changes.

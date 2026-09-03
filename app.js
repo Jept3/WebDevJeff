@@ -1,4 +1,4 @@
-const JEFFDESIGN_BUILD = 'stable-login-2026-09-03';
+const JEFFDESIGN_BUILD = 'richtext-invoice-ui-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -58,6 +58,39 @@ async function ensureSupabaseClient(){
   }
 
   return sb;
+}
+
+
+function setupTaskRichEditors(scope=document){
+  scope.querySelectorAll('[data-task-rich]').forEach(btn=>{
+    if(btn.dataset.bound==='1')return;
+    btn.dataset.bound='1';
+    btn.addEventListener('click',()=>{
+      const toolbar=btn.closest('.task-rich-toolbar');
+      const editor=toolbar?.parentElement?.querySelector('.task-rich-editor');
+      if(!editor)return;
+      editor.focus();
+
+      const cmd=btn.dataset.taskRich;
+      if(cmd==='createLink'){
+        const url=prompt('Enter link URL (https://...)');
+        if(url) document.execCommand('createLink',false,url);
+      }else{
+        document.execCommand(cmd,false,btn.dataset.value||null);
+      }
+    });
+  });
+}
+function taskEditorHTML(id){
+  return $(id)?.innerHTML?.trim()||'';
+}
+function taskEditorText(id){
+  return $(id)?.innerText?.trim()||'';
+}
+function taskDetailsDisplay(htmlOrText){
+  if(!htmlOrText)return 'No additional details.';
+  const s=String(htmlOrText);
+  return /<\/?[a-z][\s\S]*>/i.test(s)?s:esc(s).replace(/\n/g,'<br>');
 }
 
 function showToast(msg){
@@ -315,7 +348,7 @@ async function openAdminTaskDetail(id){
     </div>
     <div class="task-detail-body">
       <h4>Instructions</h4>
-      <p>${esc(task.details||'No additional instructions provided.')}</p>
+      <p>${taskDetailsDisplay(task.details||'No additional instructions provided.')}</p>
     </div>
     <div class="task-detail-footer">
       <span class="muted">Task content is read-only for Admin. Only the Employer can edit it.</span>
@@ -545,21 +578,40 @@ function renderInvoicesPage(){
     return `<div class="invoice-row"><div><strong>${esc(i.invoice_number)}</strong><small>${esc(c.name||'Client')} · ${esc(i.description||'Online Work')}</small></div><div><strong>${esc(fmtDate(i.invoice_date))}</strong><small>${esc(i.period_start?fmtDate(i.period_start):'')} ${i.period_end?'— '+esc(fmtDate(i.period_end)):''}</small></div><div><strong>${Number(i.hours||0).toFixed(2)} hrs</strong><small>${money(i.hourly_rate)}/hr</small></div><div class="invoice-amount">${money(i.total)}</div><div class="row-actions"><span class="invoice-status ${esc(i.status)}">${esc(i.status==='paid'?'Paid':i.status==='pending'?'Incoming':'Draft')}</span><button class="mini-btn" data-view-invoice="${i.id}">View</button>${currentRole==='admin'&&i.status!=='paid'?`<button class="mini-btn restore" data-mark-paid="${i.id}">Mark Paid</button>`:''}</div></div>`;
   }).join(''):'<div class="empty"><strong>No invoices yet</strong>Generated invoices will appear here.</div>';
 }
+
+async function showInvoiceById(id){
+  let invoice=invoices.find(x=>String(x.id)===String(id));
+
+  if(!invoice){
+    const {data,error}=await sb.from('invoices').select('*').eq('id',id).single();
+    if(error){showToast(error.message);return}
+    invoice=data;
+  }
+
+  const client=clients.find(c=>c.id===invoice.client_id)||null;
+
+  if(!billingSettings && currentRole==='admin'){
+    await loadBillingSettings();
+  }
+
+  openInvoicePreview(invoice,client);
+}
+
 function buildInvoiceHTML(invoice,client){
   const b=billingSettings||{},payment=invoice.notes||b.payment_instructions||'';
   return `<div class="invoice-paper">
     <div class="invoice-paper-header">
-      <div class="invoice-brand"><h2>${esc(b.business_name||'Webdev VA')}</h2><p><b>${esc(b.full_name||'')}</b></p><p>${esc(b.address||'')}</p><p>${esc(b.phone||'')}</p><p>${esc(b.email||'')}</p></div>
+      <div class="invoice-brand"><h2>${esc(b.business_name||'Jeffdesign101 / Webdev VA')}</h2><p><b>${esc(b.full_name||'')}</b></p><p>${esc(b.address||'')}</p><p>${esc(b.phone||'')}</p><p>${esc(b.email||'')}</p></div>
       <div><h1>INVOICE</h1><div class="invoice-meta"><span>Invoice #</span><strong>${esc(invoice.invoice_number)}</strong><span>Invoice Date</span><strong>${esc(fmtDate(invoice.invoice_date))}</strong><span>Work Period</span><strong>${esc(fmtDate(invoice.period_start))} — ${esc(fmtDate(invoice.period_end))}</strong><span>Status</span><strong>${esc((invoice.status||'pending').toUpperCase())}</strong></div></div>
     </div>
-    <div class="invoice-client-box"><strong>Bill To</strong><div>${esc(client?.name||'Client')}</div><div>${esc(client?.company||'')}</div><div>${esc(client?.email||'')}</div></div>
+    <div class="invoice-client-box"><strong>Bill To</strong><div>${esc(client?.name||'Client')}</div><div>${esc(client?.company||'')}</div>${client?.email?`<div>${esc(client.email)}</div>`:''}${client?.phone?`<div>${esc(client.phone)}</div>`:''}</div>
     <table class="invoice-table"><thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody><tr><td>${esc(invoice.description||'Online Work')}</td><td>${Number(invoice.hours||0).toFixed(2)}</td><td>hrs</td><td>${money(invoice.hourly_rate)}</td><td>${money(invoice.total)}</td></tr></tbody></table>
     <div class="invoice-total-box"><div><span>TOTAL</span><strong>${money(invoice.total)}</strong></div></div>
     <div class="invoice-payment"><h4>PAYMENT / NOTES</h4><p>${esc(payment||'Thank you for your business.')}</p></div>
   </div>`;
 }
-function openInvoicePreview(invoice){
-  const client=clients.find(c=>c.id===invoice.client_id);
+function openInvoicePreview(invoice,clientOverride=null){
+  const client=clientOverride||clients.find(c=>c.id===invoice.client_id);
   $('invoice-preview-content').innerHTML=buildInvoiceHTML(invoice,client);
   $('invoice-preview-backdrop').classList.remove('hidden');
 }
@@ -762,7 +814,7 @@ async function renderClientOverview(c,canEdit){
         <h3>Tasks you've sent</h3>
         <div class="employer-request-grid">
           ${tasks.slice(0,5).map(t=>`<div class="portal-task-card">
-            <div class="task-top"><div><h4>${esc(t.task)}</h4><div class="compact-task-body" data-compact-task-body="${t.id}"><p>${esc(t.details||'')}</p></div><button class="compact-toggle" data-compact-task-toggle="${t.id}">See more</button></div><span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span></div>
+            <div class="task-top"><div><h4>${esc(t.task)}</h4><div class="compact-task-body" data-compact-task-body="${t.id}"><p>${taskDetailsDisplay(t.details||'')}</p></div><button class="compact-toggle" data-compact-task-toggle="${t.id}">See more</button></div><span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span></div>
             <div class="portal-task-meta"><span>${esc(t.priority||'Normal')}</span>${t.due_date?`<span>Due ${esc(fmtDate(t.due_date))}</span>`:''}</div>
           </div>`).join('')||'<div class="muted">No requests sent yet.</div>'}
         </div>
@@ -795,6 +847,8 @@ async function renderClientOverview(c,canEdit){
       </article>
     </div>`;
 
+  setupTaskRichEditors($('client-home-content'));
+
   const renderOverviewFiles=async()=>{
     const box=$('overview-file-list'); if(!box)return;
     const files=await listFiles(c.id).catch(()=>[]);
@@ -811,7 +865,7 @@ async function renderClientOverview(c,canEdit){
       if(!title){showToast('Add a task title');return}
       const {error}=await sb.from('client_tasks').insert({
         client_id:c.id,user_id:session.user.id,task:title,
-        details:$('overview-task-details').value.trim(),
+        details:taskEditorHTML('overview-task-details'),
         priority:$('overview-task-priority').value,
         due_date:$('overview-task-due').value||null
       });
@@ -882,7 +936,7 @@ async function renderClientTasksPage(c,canEdit){
               <div class="task-top">
                 <div>
                   <h4>${esc(t.task)}</h4>
-                  <div class="task-body"><p>${esc(t.details||'No additional details.')}</p></div>
+                  <div class="task-body"><p>${taskDetailsDisplay(t.details||'No additional details.')}</p></div>
                 </div>
                 <span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span>
               </div>
@@ -897,7 +951,7 @@ async function renderClientTasksPage(c,canEdit){
               </div>
               <div id="employer-edit-${t.id}" class="employer-task-edit-grid hidden">
                 <input data-edit-title="${t.id}" value="${esc(t.task)}">
-                <textarea data-edit-details="${t.id}">${esc(t.details||'')}</textarea>
+                <textarea data-edit-details="${t.id}">${taskDetailsDisplay(t.details||'')}</textarea>
                 <div class="form-grid">
                   <label><span>Priority</span><select data-edit-priority="${t.id}">
                     ${['Normal','High','Urgent','Low'].map(p=>`<option ${p===(t.priority||'Normal')?'selected':''}>${p}</option>`).join('')}
@@ -911,6 +965,8 @@ async function renderClientTasksPage(c,canEdit){
       </article>
     </div>`;
 
+  setupTaskRichEditors($('client-tasks-content'));
+
   document.querySelectorAll('[data-toggle-task]').forEach(btn=>btn.addEventListener('click',()=>{
     const card=document.querySelector(`[data-task-card="${btn.dataset.toggleTask}"]`);
     const expanded=card.classList.toggle('expanded');
@@ -923,7 +979,7 @@ async function renderClientTasksPage(c,canEdit){
       if(!title){showToast('Add a task title');return}
       const {error}=await sb.from('client_tasks').insert({
         client_id:c.id,user_id:session.user.id,task:title,
-        details:$('portal-task-details').value.trim(),
+        details:taskEditorHTML('portal-task-details'),
         priority:$('portal-task-priority').value,
         due_date:$('portal-task-due').value||null
       });
@@ -1010,6 +1066,46 @@ function startEmployerLiveTimer(activeEntry){
   employerMonitorInterval=setInterval(tick,1000);
 }
 
+
+function setupEmployerFloatingControls(){
+  const box=$('employer-floating-status');
+  const handle=$('employer-floating-drag');
+  const close=$('employer-floating-close');
+  const restore=$('employer-floating-restore');
+  if(!box||box.dataset.controlsBound==='1')return;
+  box.dataset.controlsBound='1';
+
+  close?.addEventListener('click',()=>{
+    box.classList.add('hidden');
+    restore?.classList.remove('hidden');
+    localStorage.setItem('jeffdesign101_float_hidden','1');
+  });
+  restore?.addEventListener('click',()=>{
+    box.classList.remove('hidden');
+    restore.classList.add('hidden');
+    localStorage.removeItem('jeffdesign101_float_hidden');
+  });
+
+  let dragging=false,offsetX=0,offsetY=0;
+  handle?.addEventListener('pointerdown',e=>{
+    dragging=true;
+    handle.setPointerCapture(e.pointerId);
+    const r=box.getBoundingClientRect();
+    offsetX=e.clientX-r.left;
+    offsetY=e.clientY-r.top;
+  });
+  handle?.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    const left=Math.max(8,Math.min(window.innerWidth-box.offsetWidth-8,e.clientX-offsetX));
+    const top=Math.max(8,Math.min(window.innerHeight-box.offsetHeight-8,e.clientY-offsetY));
+    box.style.left=`${left}px`;
+    box.style.top=`${top}px`;
+    box.style.right='auto';
+    box.style.bottom='auto';
+  });
+  handle?.addEventListener('pointerup',()=>{dragging=false});
+}
+
 function updateEmployerFloatingStatus(){
   const box=$('employer-floating-status');
   if(!box)return;
@@ -1020,7 +1116,10 @@ function updateEmployerFloatingStatus(){
   const c=portalClient();
   if(!c){box.classList.add('hidden');return}
   const active=timeEntries.find(e=>e.client_id===c.id && !e.clock_out)||null;
-  box.classList.remove('hidden');
+  setupEmployerFloatingControls();
+  const userHidden=localStorage.getItem('jeffdesign101_float_hidden')==='1';
+  box.classList.toggle('hidden',userHidden);
+  $('employer-floating-restore')?.classList.toggle('hidden',!userHidden);
   box.classList.toggle('working',!!active);
   $('employer-floating-dot').classList.toggle('active',!!active);
   $('employer-floating-label').textContent=active?'VA Working Now':'VA Offline';
@@ -1419,7 +1518,7 @@ async function renderClientDetail(c,q=''){
       const {data:employerTasks}=await sb.from('client_tasks').select('*').eq('client_id',c.id).order('created_at',{ascending:false});
       taskBox.innerHTML=(employerTasks||[]).length?(employerTasks||[]).map(t=>`
         <div class="portal-task-card">
-          <div class="task-top"><div><h4>${esc(t.task)}</h4><p>${esc(t.details||'')}</p></div><span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span></div>
+          <div class="task-top"><div><h4>${esc(t.task)}</h4><p>${taskDetailsDisplay(t.details||'')}</p></div><span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span></div>
           <div class="portal-task-meta"><span>${esc(t.priority||'Normal')}</span>${t.due_date?`<span>Due ${esc(fmtDate(t.due_date))}</span>`:''}</div>
         </div>`).join(''):'<div class="muted">No employer requests yet.</div>';
     }
@@ -1832,7 +1931,7 @@ $('create-invoice')?.addEventListener('click',createInvoice);
 $('invoice-preview-close')?.addEventListener('click',()=>$('invoice-preview-backdrop').classList.add('hidden'));
 $('invoice-preview-backdrop')?.addEventListener('click',e=>{if(e.target===$('invoice-preview-backdrop'))$('invoice-preview-backdrop').classList.add('hidden')});
 document.addEventListener('click',async e=>{
-  const vi=e.target.closest('[data-view-invoice]');if(vi){const inv=invoices.find(x=>x.id===vi.dataset.viewInvoice);if(inv)openInvoicePreview(inv)}
+  const vi=e.target.closest('[data-view-invoice]');if(vi){await showInvoiceById(vi.dataset.viewInvoice)}
   const mp=e.target.closest('[data-mark-paid]');if(mp)await markInvoicePaid(mp.dataset.markPaid);
 });
 
