@@ -1,3 +1,4 @@
+const JEFFDESIGN_BUILD = 'portal-render-fix-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -467,12 +468,6 @@ async function markInvoicePaid(id){
 }
 
 
-function setView(view){
-  if(currentRole!=='admin' && ['dashboard','projects','trash','clients','time','settings','invoices','client-detail'].includes(view)){
-    view='client-home';
-  }
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  
 function portalClient(){
   return clients.find(c=>c.id===activeClientId)||clients[0]||null;
 }
@@ -672,10 +667,34 @@ function renderClientAccountPage(c){
   });
 }
 
-document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+function setView(view){
+  if(currentRole!=='admin' && ['dashboard','projects','trash','clients','time','settings','invoices','client-detail'].includes(view)){
+    view='client-home';
+  }
+
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   $(`${view}-view`)?.classList.add('active');
-  const titles={dashboard:'Dashboard',clients:'Client Directory',projects:'Project Monitoring',time:'Time Log',invoices:'Invoices',settings:'Rate & Billing',trash:'Trash','client-detail':'Client Details','client-home':'My Project','client-tasks':'Tasks','client-progress':'Progress','client-files':'Files','client-invoices':'Invoices','client-account':'Account'};
+
+  const titles={
+    dashboard:'Dashboard',
+    clients:'Client Directory',
+    projects:'Project Monitoring',
+    time:'Time Log',
+    invoices:'Invoices',
+    settings:'Rate & Billing',
+    trash:'Trash',
+    'client-detail':'Client Details',
+    'client-home':'My Project',
+    'client-tasks':'Tasks',
+    'client-progress':'Progress',
+    'client-files':'Files',
+    'client-invoices':'Invoices',
+    'client-account':'Account'
+  };
+
   els.pageTitle.textContent=titles[view]||'Jeffdesign101';
+
   if(view==='clients')renderClients();
   if(view==='projects')renderProjectBoard();
   if(view==='trash')renderTrash();
@@ -683,7 +702,14 @@ document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.
   if(view==='invoices')renderInvoicesPage();
   if(view==='settings')renderBillingSettings();
   if(view==='dashboard')updateDashboard();
-  if(view.startsWith('client-') && view!=='client-detail' && currentRole!=='admin') renderClientPortal(view);
+
+  if(view.startsWith('client-') && view!=='client-detail' && currentRole!=='admin'){
+    renderClientPortal(view).catch(error=>{
+      console.error('Client portal render failed:',error);
+      showToast(error?.message||'Could not open client portal');
+    });
+  }
+
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1272,6 +1298,7 @@ document.addEventListener('click',async e=>{
   const mp=e.target.closest('[data-mark-paid]');if(mp)await markInvoicePaid(mp.dataset.markPaid);
 });
 
+console.info('Jeffdesign101 build:',JEFFDESIGN_BUILD);
 initializeAuth().catch(e=>{
   console.error(e);lockUI(true);$('login-error').textContent=e.message||'Could not initialize CRM.';
 });
