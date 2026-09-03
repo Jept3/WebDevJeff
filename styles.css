@@ -720,3 +720,249 @@ body.auth-loading #login-screen .login-card{
   border-radius:18px;
   padding:16px;
 }
+
+
+/* Employer Work Status Monitor */
+.work-monitor-hero{
+  margin-top:16px;
+  border-radius:24px;
+  padding:24px;
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:18px;
+  align-items:center;
+}
+.work-status-live{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:12px;
+}
+.work-status-dot{
+  width:12px;height:12px;border-radius:50%;
+  background:#7b877e;
+}
+.work-status-dot.active{
+  background:var(--lime);
+  box-shadow:0 0 0 0 rgba(186,255,58,.45);
+  animation:pulse 2s infinite;
+}
+.employer-live-timer{
+  font-size:48px;
+  font-weight:900;
+  letter-spacing:-.04em;
+  margin:8px 0;
+}
+.work-monitor-meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.work-monitor-meta .portal-kpi{min-height:92px}
+.work-period-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-top:16px;
+}
+.work-period-card{
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:rgba(255,255,255,.025);
+}
+.work-period-card span{
+  display:block;color:var(--muted);font-size:10px;
+  text-transform:uppercase;letter-spacing:.1em
+}
+.work-period-card strong{
+  display:block;font-size:28px;margin-top:5px
+}
+.work-session-list{display:grid;gap:9px}
+.work-session-row{
+  display:grid;
+  grid-template-columns:1.2fr .8fr .7fr .7fr;
+  gap:12px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(255,255,255,.025);
+}
+@media(max-width:900px){
+  .work-monitor-hero{grid-template-columns:1fr}
+  .work-period-grid{grid-template-columns:1fr 1fr 1fr}
+}
+@media(max-width:650px){
+  .work-period-grid{grid-template-columns:1fr}
+  .work-session-row{grid-template-columns:1fr 1fr}
+  .employer-live-timer{font-size:38px}
+}
+
+
+/* Professional task CRM */
+.nav-badge{
+  margin-left:auto;
+  min-width:20px;
+  height:20px;
+  padding:0 6px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--lime);
+  color:#071006;
+  font-size:10px;
+  font-weight:900;
+}
+.page-intro{
+  margin-top:18px;
+  padding:22px;
+  border-radius:22px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:18px;
+}
+.page-intro h2{margin:3px 0 5px;font-size:28px}
+.page-intro p{margin:0;color:var(--muted);max-width:760px}
+.page-intro-actions select{
+  min-width:150px;
+  border:1px solid var(--line);
+  background:#101713;
+  color:var(--text);
+  border-radius:12px;
+  padding:10px 12px;
+}
+.task-inbox-list{display:grid;gap:11px;margin-top:14px}
+.task-inbox-card{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.025);
+  border-radius:18px;
+  padding:15px;
+  display:grid;
+  grid-template-columns:minmax(0,1.6fr) .8fr .7fr auto;
+  gap:14px;
+  align-items:center;
+  transition:.2s;
+}
+.task-inbox-card:hover{
+  transform:translateY(-1px);
+  border-color:rgba(186,255,58,.20);
+}
+.task-inbox-card.unread{
+  border-color:rgba(186,255,58,.30);
+  background:rgba(186,255,58,.035);
+}
+.task-inbox-card h4{margin:0 0 5px;font-size:14px}
+.task-preview{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.5;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.task-card-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}
+.task-status-pill{
+  display:inline-flex;
+  padding:6px 9px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:850;
+  border:1px solid var(--line);
+}
+.task-status-pill.open{color:#d9ffc0;background:rgba(186,255,58,.07)}
+.task-status-pill.done{color:#8cf6b4;background:rgba(34,197,94,.08)}
+.task-status-pill.unread{color:#fff;background:rgba(186,255,58,.12);border-color:rgba(186,255,58,.3)}
+.task-detail-modal{width:min(850px,100%)}
+.task-detail-body{
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:16px;
+  background:rgba(255,255,255,.025);
+}
+.task-detail-body p{
+  white-space:pre-wrap;
+  line-height:1.7;
+  color:#c6d0c9;
+}
+.task-detail-meta{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin:14px 0;
+}
+.task-detail-meta .info-item{min-height:72px}
+.task-detail-footer{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+  margin-top:14px;
+}
+.expandable-task{
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  background:rgba(255,255,255,.025);
+  margin-top:10px;
+}
+.expandable-task .task-body{
+  max-height:58px;
+  overflow:hidden;
+  position:relative;
+}
+.expandable-task.expanded .task-body{max-height:none}
+.expandable-task:not(.expanded) .task-body:after{
+  content:"";
+  position:absolute;
+  left:0;right:0;bottom:0;height:30px;
+  background:linear-gradient(transparent,rgba(17,24,20,.98));
+}
+.task-toggle-link{
+  border:0;background:transparent;color:var(--lime);
+  font-size:11px;font-weight:800;padding:8px 0 0
+}
+.employer-task-edit-grid{display:grid;gap:10px;margin-top:12px}
+.employer-task-edit-grid input,
+.employer-task-edit-grid textarea,
+.employer-task-edit-grid select{
+  width:100%;border:1px solid var(--line);background:rgba(4,7,5,.52);
+  color:var(--text);border-radius:12px;padding:10px 11px
+}
+.employer-task-edit-grid textarea{min-height:130px;resize:vertical}
+.employer-status-control{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.employer-status-btn{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  border-radius:999px;
+  padding:7px 10px;
+  font-size:10px;
+  font-weight:850;
+}
+.employer-status-btn.active{
+  color:#071006;
+  background:var(--lime);
+  border-color:var(--lime);
+}
+.dashboard-polish .panel,
+.dashboard-polish .stat-card,
+.dashboard-polish .portal-summary-card{
+  box-shadow:0 14px 50px rgba(0,0,0,.16);
+}
+@media(max-width:900px){
+  .task-inbox-card{grid-template-columns:1fr 1fr}
+  .task-card-actions{justify-content:flex-start;grid-column:1/-1}
+  .task-detail-meta{grid-template-columns:1fr 1fr}
+}
+@media(max-width:650px){
+  .page-intro{display:block}.page-intro-actions{margin-top:12px}
+  .task-inbox-card{grid-template-columns:1fr}
+  .task-card-actions{grid-column:auto}
+}

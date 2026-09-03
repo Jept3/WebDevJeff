@@ -1,4 +1,4 @@
-const JEFFDESIGN_BUILD = 'employer-routing-fix-2026-09-03';
+const JEFFDESIGN_BUILD = 'professional-task-crm-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -25,9 +25,12 @@ let formAutosaveTimer = null;
 let submissionAutosaveTimer = null;
 let workSession = null;
 let workTimerInterval = null;
+let employerMonitorInterval = null;
 let timeEntries = [];
 let invoices = [];
 let billingSettings = null;
+let taskInbox = [];
+let activeTaskDetailId = null;
 
 function configured(){
   return cfg.supabaseUrl && cfg.supabasePublishableKey &&
@@ -108,6 +111,7 @@ async function loadCloudData(){
   await loadBillingSettings();
   await loadTimeEntries();
   await loadInvoices();
+  if(currentRole==='admin') await loadTaskInbox();
   renderAll();
 }
 function renderAll(){
@@ -115,6 +119,7 @@ function renderAll(){
     updateDashboard();
     renderClients();
     renderProjectBoard();
+    loadTaskInbox().then(()=>renderTaskInbox());
     renderTrash();
     renderTimePage();
     renderInvoicesPage();
@@ -207,6 +212,96 @@ function renderBillingSettings(){
   $('billing-address').value=b.address||'';
   $('billing-payment').value=b.payment_instructions||'';
 }
+
+async function loadTaskInbox(){
+  if(currentRole!=='admin'||!sb)return;
+  const {data,error}=await sb.from('client_tasks').select('*').order('created_at',{ascending:false});
+  if(error){console.warn(error);return}
+  taskInbox=data||[];
+  updateTaskInboxBadge();
+}
+function updateTaskInboxBadge(){
+  const badge=$('task-inbox-badge');
+  if(!badge)return;
+  const unread=taskInbox.filter(t=>!t.admin_seen_at).length;
+  badge.textContent=unread;
+  badge.classList.toggle('hidden',unread===0);
+}
+function filteredTaskInbox(){
+  const filter=$('task-inbox-filter')?.value||'all';
+  return taskInbox.filter(t=>{
+    if(filter==='unread')return !t.admin_seen_at;
+    if(filter==='open')return !t.done;
+    if(filter==='done')return !!t.done;
+    return true;
+  });
+}
+function renderTaskInbox(){
+  if(currentRole!=='admin'||!$('task-inbox-list'))return;
+  const list=filteredTaskInbox();
+  $('task-inbox-list').innerHTML=list.length?list.map(t=>{
+    const c=clients.find(x=>x.id===t.client_id)||{};
+    return `<article class="task-inbox-card ${t.admin_seen_at?'':'unread'}">
+      <div>
+        <h4>${esc(t.task)}</h4>
+        <div class="task-preview">${esc(t.details||'No details provided.')}</div>
+      </div>
+      <div><strong>${esc(c.name||'Employer')}</strong><small class="muted">${esc(t.priority||'Normal')} priority</small></div>
+      <div><strong>${t.due_date?esc(fmtDate(t.due_date)):'No due date'}</strong><small class="muted">${esc(fmtUpdated(t.created_at))}</small></div>
+      <div class="task-card-actions">
+        ${!t.admin_seen_at?'<span class="task-status-pill unread">New</span>':''}
+        <span class="task-status-pill ${t.done?'done':'open'}">${t.done?'Completed':'Open'}</span>
+        <button class="mini-btn" data-admin-open-task="${t.id}">Open</button>
+        <button class="mini-btn ${t.done?'restore':'edit'}" data-admin-toggle-done="${t.id}">${t.done?'Reopen':'Mark Done'}</button>
+      </div>
+    </article>`;
+  }).join(''):'<div class="empty"><strong>No tasks found</strong>No employer requests match this filter.</div>';
+}
+async function markTaskSeen(id){
+  const task=taskInbox.find(t=>t.id===id);
+  if(!task||task.admin_seen_at)return;
+  const seen=new Date().toISOString();
+  const {error}=await sb.from('client_tasks').update({admin_seen_at:seen}).eq('id',id);
+  if(!error){task.admin_seen_at=seen;updateTaskInboxBadge();renderTaskInbox()}
+}
+async function toggleTaskDone(id){
+  const task=taskInbox.find(t=>t.id===id);if(!task)return;
+  const next=!task.done;
+  const {error}=await sb.from('client_tasks').update({done:next,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){showToast(error.message);return}
+  task.done=next;
+  showToast(next?'Task marked completed':'Task reopened');
+  renderTaskInbox();
+}
+async function openAdminTaskDetail(id){
+  const task=taskInbox.find(t=>t.id===id);if(!task)return;
+  activeTaskDetailId=id;
+  await markTaskSeen(id);
+  const c=clients.find(x=>x.id===task.client_id)||{};
+  $('task-detail-title').textContent=task.task;
+  $('task-detail-content').innerHTML=`
+    <div class="task-detail-meta">
+      <div class="info-item"><span>Employer</span><strong>${esc(c.name||'—')}</strong></div>
+      <div class="info-item"><span>Priority</span><strong>${esc(task.priority||'Normal')}</strong></div>
+      <div class="info-item"><span>Due date</span><strong>${task.due_date?esc(fmtDate(task.due_date)):'—'}</strong></div>
+      <div class="info-item"><span>Status</span><strong>${task.done?'Completed':'Open'}</strong></div>
+    </div>
+    <div class="task-detail-body">
+      <h4>Instructions</h4>
+      <p>${esc(task.details||'No additional instructions provided.')}</p>
+    </div>
+    <div class="task-detail-footer">
+      <span class="muted">Task content is read-only for Admin. Only the Employer can edit it.</span>
+      <button class="btn btn-primary" id="task-detail-toggle-done">${task.done?'Reopen Task':'Mark Completed'}</button>
+    </div>`;
+  $('task-detail-toggle-done')?.addEventListener('click',async()=>{
+    await toggleTaskDone(id);
+    const latest=taskInbox.find(x=>x.id===id);
+    if(latest)await openAdminTaskDetail(id);
+  });
+  $('task-detail-backdrop').classList.remove('hidden');
+}
+
 async function loadTimeEntries(){
   if(!sb||!session)return;
   let q=sb.from('time_entries').select('*').order('clock_in',{ascending:false});
@@ -537,10 +632,24 @@ async function renderClientPortal(view='client-home'){
   if(view==='client-home') await renderClientOverview(c,canEdit);
   if(view==='client-tasks') await renderClientTasksPage(c,canEdit);
   if(view==='client-files') await renderClientFilesPage(c,canEdit);
+  if(view==='client-work') await renderEmployerWorkMonitor(c);
   if(view==='client-invoices') await renderClientInvoicesPage(c);
   if(view==='client-account') renderClientAccountPage(c);
 
-  els.pageTitle.textContent={ 'client-home':'Employer Portal','client-tasks':'Tasks','client-files':'Files','client-invoices':'Invoices','client-account':'Account'}[view]||'Employer Portal';
+  els.pageTitle.textContent={ 'client-home':'Employer Portal','client-tasks':'Tasks','client-files':'Files','client-work':'Work Monitor','client-invoices':'Invoices','client-account':'Account'}[view]||'Employer Portal';
+}
+
+
+async function updateEmployerProjectStatus(clientId,status){
+  if(currentRole==='admin')return;
+  const allowed=['ongoing','paused','complete'];
+  if(!allowed.includes(status))return;
+  const {error}=await sb.from('clients').update({status}).eq('id',clientId);
+  if(error){showToast(error.message);return}
+  const c=clients.find(x=>x.id===clientId);
+  if(c)c.status=status;
+  showToast('Project status updated');
+  await renderClientPortal('client-home');
 }
 
 async function renderClientOverview(c,canEdit){
@@ -552,6 +661,17 @@ async function renderClientOverview(c,canEdit){
 
   $('client-home-content').innerHTML=`
     ${!canEdit?`<div class="readonly-banner" style="margin-top:16px">Your employer portal is currently <b>View Only</b>. You can review information and invoices, but editing/uploads are disabled.</div>`:''}
+
+    <article class="portal-summary-card glass" style="margin-top:16px">
+      <div class="panel-head">
+        <div><p class="eyebrow">PROJECT STATUS</p><h3>Employer control</h3></div>
+        <div class="employer-status-control">
+          <button class="employer-status-btn ${c.status==='ongoing'?'active':''}" data-employer-status="ongoing">Active</button>
+          <button class="employer-status-btn ${c.status==='paused'?'active':''}" data-employer-status="paused">Paused</button>
+          <button class="employer-status-btn ${c.status==='complete'?'active':''}" data-employer-status="complete">Complete</button>
+        </div>
+      </div>
+    </article>
 
     <div class="portal-kpis">
       <div class="portal-kpi"><span>Open requests</span><strong>${tasks.filter(t=>!t.done).length}</strong></div>
@@ -664,14 +784,20 @@ async function renderClientOverview(c,canEdit){
       }
     });
   }
+
+  document.querySelectorAll('[data-employer-status]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(canEdit) updateEmployerProjectStatus(c.id,btn.dataset.employerStatus);
+    else showToast('This portal is View Only');
+  }));
 }
 async function renderClientTasksPage(c,canEdit){
   const {data,error}=await sb.from('client_tasks').select('*').eq('client_id',c.id).order('created_at',{ascending:false});
   const tasks=data||[];
+
   $('client-tasks-content').innerHTML=`
     <div class="portal-overview-grid">
       ${canEdit?`<article class="portal-summary-card glass">
-        <p class="eyebrow">NEW TASK</p><h3>Send a task to your VA</h3>
+        <p class="eyebrow">NEW REQUEST</p><h3>Send a task to your VA</h3>
         <div class="portal-task-form">
           <input id="portal-task-title" placeholder="Task title">
           <textarea id="portal-task-details" placeholder="Detailed instructions, checklist, links, requirements..."></textarea>
@@ -682,34 +808,90 @@ async function renderClientTasksPage(c,canEdit){
           <button id="portal-add-task" class="btn btn-primary">＋ Send Task</button>
         </div>
       </article>`:''}
+
       <article class="portal-summary-card glass ${canEdit?'':'full'}">
-        <p class="eyebrow">TASK STATUS</p><h3>${tasks.filter(t=>!t.done).length} open · ${tasks.filter(t=>t.done).length} completed</h3>
-        <div class="project-progress"><span style="width:${tasks.length?Math.round(tasks.filter(t=>t.done).length/tasks.length*100):0}%"></span></div>
+        <p class="eyebrow">TASK STATUS</p>
+        <h3>${tasks.filter(t=>!t.done).length} open · ${tasks.filter(t=>t.done).length} completed</h3>
       </article>
+
       <article class="portal-summary-card glass full">
         <p class="eyebrow">ALL TASKS</p><h3>Task history</h3>
         <div id="portal-task-list">
-          ${tasks.length?tasks.map(t=>`<div class="portal-task-card">
-            <div class="task-top"><div><h4>${esc(t.task)}</h4><p>${esc(t.details||'')}</p></div><span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span></div>
-            <div class="portal-task-meta"><span>${esc(t.priority||'Normal')}</span>${t.due_date?`<span>Due ${esc(fmtDate(t.due_date))}</span>`:''}<span>${esc(fmtUpdated(t.created_at))}</span></div>
-          </div>`).join(''):'<div class="empty"><strong>No tasks yet</strong>Create the first task for your VA.</div>'}
+          ${tasks.length?tasks.map(t=>`
+            <div class="expandable-task" data-task-card="${t.id}">
+              <div class="task-top">
+                <div>
+                  <h4>${esc(t.task)}</h4>
+                  <div class="task-body"><p>${esc(t.details||'No additional details.')}</p></div>
+                </div>
+                <span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span>
+              </div>
+              <div class="portal-task-meta">
+                <span>${esc(t.priority||'Normal')}</span>
+                ${t.due_date?`<span>Due ${esc(fmtDate(t.due_date))}</span>`:''}
+                <span>${esc(fmtUpdated(t.created_at))}</span>
+              </div>
+              <div class="task-card-actions">
+                <button class="task-toggle-link" data-toggle-task="${t.id}">View details</button>
+                ${canEdit?`<button class="mini-btn edit" data-employer-edit-task="${t.id}">Edit</button>`:''}
+              </div>
+              <div id="employer-edit-${t.id}" class="employer-task-edit-grid hidden">
+                <input data-edit-title="${t.id}" value="${esc(t.task)}">
+                <textarea data-edit-details="${t.id}">${esc(t.details||'')}</textarea>
+                <div class="form-grid">
+                  <label><span>Priority</span><select data-edit-priority="${t.id}">
+                    ${['Normal','High','Urgent','Low'].map(p=>`<option ${p===(t.priority||'Normal')?'selected':''}>${p}</option>`).join('')}
+                  </select></label>
+                  <label><span>Due date</span><input data-edit-due="${t.id}" type="date" value="${esc(t.due_date||'')}"></label>
+                </div>
+                <div class="row-actions"><button class="btn btn-primary" data-employer-save-task="${t.id}">Save Changes</button></div>
+              </div>
+            </div>`).join(''):'<div class="empty"><strong>No tasks yet</strong>Create the first task for your VA.</div>'}
         </div>
       </article>
     </div>`;
+
+  document.querySelectorAll('[data-toggle-task]').forEach(btn=>btn.addEventListener('click',()=>{
+    const card=document.querySelector(`[data-task-card="${btn.dataset.toggleTask}"]`);
+    const expanded=card.classList.toggle('expanded');
+    btn.textContent=expanded?'Show less':'View details';
+  }));
+
   if(canEdit){
     $('portal-add-task')?.addEventListener('click',async()=>{
       const title=$('portal-task-title').value.trim();
       if(!title){showToast('Add a task title');return}
       const {error}=await sb.from('client_tasks').insert({
-        client_id:c.id,user_id:session.user.id,task:title,details:$('portal-task-details').value.trim(),
-        priority:$('portal-task-priority').value,due_date:$('portal-task-due').value||null
+        client_id:c.id,user_id:session.user.id,task:title,
+        details:$('portal-task-details').value.trim(),
+        priority:$('portal-task-priority').value,
+        due_date:$('portal-task-due').value||null
       });
       if(error){showToast(error.message);return}
-      showToast('Request sent');await renderClientTasksPage(c,canEdit);
+      showToast('Task sent');
+      await renderClientTasksPage(c,canEdit);
     });
+
+    document.querySelectorAll('[data-employer-edit-task]').forEach(btn=>btn.addEventListener('click',()=>{
+      $(`employer-edit-${btn.dataset.employerEditTask}`)?.classList.toggle('hidden');
+    }));
+
+    document.querySelectorAll('[data-employer-save-task]').forEach(btn=>btn.addEventListener('click',async()=>{
+      const id=btn.dataset.employerSaveTask;
+      const payload={
+        task:document.querySelector(`[data-edit-title="${id}"]`).value.trim(),
+        details:document.querySelector(`[data-edit-details="${id}"]`).value.trim(),
+        priority:document.querySelector(`[data-edit-priority="${id}"]`).value,
+        due_date:document.querySelector(`[data-edit-due="${id}"]`).value||null,
+        updated_at:new Date().toISOString()
+      };
+      const {error}=await sb.from('client_tasks').update(payload).eq('id',id);
+      if(error){showToast(error.message);return}
+      showToast('Task updated');
+      await renderClientTasksPage(c,canEdit);
+    }));
   }
 }
-
 async function renderClientFilesPage(c,canEdit){
   const files=await listFiles(c.id).catch(()=>[]);
   $('client-files-content').innerHTML=`
@@ -725,6 +907,129 @@ async function renderClientFilesPage(c,canEdit){
       if(e.target.files?.length){await uploadFiles(c.id,[...e.target.files]);await renderClientFilesPage(c,canEdit)}
     });
   }
+}
+
+
+function monthStart(d=new Date()){
+  const x=new Date(d.getFullYear(),d.getMonth(),1);
+  x.setHours(0,0,0,0);
+  return x;
+}
+function dayStart(d=new Date()){
+  const x=new Date(d);
+  x.setHours(0,0,0,0);
+  return x;
+}
+function totalHoursFor(entries,start){
+  return entries
+    .filter(e=>new Date(e.clock_in)>=start)
+    .reduce((sum,e)=>sum+timeEntryHours(e),0);
+}
+function formatDurationHours(hours){
+  const totalMinutes=Math.round(hours*60);
+  const h=Math.floor(totalMinutes/60);
+  const m=totalMinutes%60;
+  return `${h}h ${String(m).padStart(2,'0')}m`;
+}
+function startEmployerLiveTimer(activeEntry){
+  clearInterval(employerMonitorInterval);
+  const tick=()=>{
+    const timer=$('employer-running-timer');
+    if(!timer)return;
+    if(!activeEntry){
+      timer.textContent='00:00:00';
+      return;
+    }
+    const sec=Math.max(0,Math.floor((Date.now()-new Date(activeEntry.clock_in).getTime())/1000));
+    const h=String(Math.floor(sec/3600)).padStart(2,'0');
+    const m=String(Math.floor((sec%3600)/60)).padStart(2,'0');
+    const s=String(sec%60).padStart(2,'0');
+    timer.textContent=`${h}:${m}:${s}`;
+  };
+  tick();
+  employerMonitorInterval=setInterval(tick,1000);
+}
+async function renderEmployerWorkMonitor(c){
+  const entries=timeEntries.filter(e=>e.client_id===c.id);
+  const active=entries.find(e=>!e.clock_out)||null;
+
+  const todayH=totalHoursFor(entries,dayStart());
+  const weekH=totalHoursFor(entries,startOfWeek(new Date()));
+  const monthH=totalHoursFor(entries,monthStart());
+
+  const todayCompleted=entries.filter(e=>e.clock_out && new Date(e.clock_in)>=dayStart());
+  const latest=entries[0]||null;
+
+  $('client-work-content').innerHTML=`
+    <article class="work-monitor-hero glass">
+      <div>
+        <p class="eyebrow">VA WORK STATUS</p>
+        <div class="work-status-live">
+          <span class="work-status-dot ${active?'active':''}"></span>
+          <strong>${active?'Working now':'Signed out / Not working'}</strong>
+        </div>
+        <div id="employer-running-timer" class="employer-live-timer">00:00:00</div>
+        <div class="muted">
+          ${active
+            ? `Current task: ${esc(active.task||'General work')} · started ${esc(new Date(active.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}`
+            : latest
+              ? `Last activity: ${esc(fmtUpdated(latest.clock_in))}`
+              : 'No work sessions recorded yet.'}
+        </div>
+      </div>
+      <div class="work-monitor-meta">
+        <div class="portal-kpi"><span>Today</span><strong>${formatDurationHours(todayH)}</strong></div>
+        <div class="portal-kpi"><span>Today sessions</span><strong>${todayCompleted.length + (active?1:0)}</strong></div>
+        <div class="portal-kpi"><span>Current task</span><strong style="font-size:15px">${esc(active?.task||'—')}</strong></div>
+        <div class="portal-kpi"><span>Work status</span><strong style="font-size:15px">${active?'Online':'Offline'}</strong></div>
+      </div>
+    </article>
+
+    <div class="work-period-grid">
+      <div class="work-period-card glass">
+        <span>Today</span>
+        <strong>${formatDurationHours(todayH)}</strong>
+        <small class="muted">Work time today</small>
+      </div>
+      <div class="work-period-card glass">
+        <span>This Week</span>
+        <strong>${formatDurationHours(weekH)}</strong>
+        <small class="muted">Monday to today</small>
+      </div>
+      <div class="work-period-card glass">
+        <span>This Month</span>
+        <strong>${formatDurationHours(monthH)}</strong>
+        <small class="muted">Current month</small>
+      </div>
+    </div>
+
+    <article class="portal-summary-card glass" style="margin-top:16px">
+      <div class="panel-head">
+        <div><p class="eyebrow">WORK HISTORY</p><h3>Recent VA sessions</h3></div>
+      </div>
+      <div class="work-session-list">
+        ${entries.length?entries.slice(0,20).map(e=>`
+          <div class="work-session-row">
+            <div>
+              <strong>${esc(e.task||'General work')}</strong>
+              <small class="muted">${esc(new Date(e.clock_in).toLocaleDateString())}</small>
+            </div>
+            <div>
+              <span class="muted">Time</span>
+              <strong>${esc(new Date(e.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}${e.clock_out?' → '+esc(new Date(e.clock_out).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})):' → now'}</strong>
+            </div>
+            <div>
+              <span class="muted">Duration</span>
+              <strong>${formatDurationHours(timeEntryHours(e))}</strong>
+            </div>
+            <div>
+              ${e.clock_out?'<span class="invoice-status paid">Completed</span>':'<span class="invoice-status pending">Working now</span>'}
+            </div>
+          </div>`).join(''):'<div class="empty"><strong>No work sessions yet</strong>Your VA work sessions will appear here.</div>'}
+      </div>
+    </article>`;
+
+  startEmployerLiveTimer(active);
 }
 
 async function renderClientInvoicesPage(c){
@@ -781,6 +1086,7 @@ function setView(view){
     dashboard:'Dashboard',
     clients:'Client Directory',
     projects:'Project Monitoring',
+    'task-inbox':'Task Inbox',
     time:'Time Log',
     invoices:'Invoices',
     settings:'Rate & Billing',
@@ -798,6 +1104,7 @@ function setView(view){
 
   if(view==='clients')renderClients();
   if(view==='projects')renderProjectBoard();
+  if(view==='task-inbox')renderTaskInbox();
   if(view==='trash')renderTrash();
   if(view==='time')renderTimePage();
   if(view==='invoices')renderInvoicesPage();
@@ -942,11 +1249,10 @@ async function renderClientDetail(c,q=''){
     <div class="portal-grid">
       <article class="portal-card glass">
         <div class="task-toolbar">
-          <div><p class="eyebrow">TODAY</p><h4 style="margin:0">Task of the Day</h4></div>
-          <span class="task-date">${esc(new Intl.DateTimeFormat(undefined,{weekday:'long',month:'short',day:'numeric'}).format(new Date()))}</span>
+          <div><p class="eyebrow">EMPLOYER REQUESTS</p><h4 style="margin:0">Task Inbox</h4></div>
+          <button class="btn btn-ghost" data-view-jump="task-inbox">Open Task Inbox</button>
         </div>
-        ${canEdit?`<div class="task-add"><input id="new-task" placeholder="Add today's task…"><button id="add-task" class="btn btn-primary">＋ Add</button></div>`:''}
-        <div id="task-list"><div class="muted" style="padding:12px 0">Loading tasks…</div></div>
+        <div class="cloud-note">Employer-created tasks are read-only here. Use Task Inbox to review them and mark work complete.</div>
       </article>
 
       <article class="portal-card glass">
@@ -1011,7 +1317,6 @@ async function renderClientDetail(c,q=''){
       </article>
     </div>`;
 
-  await renderTasks(c.id,canEdit);
   await renderDetailFiles(c.id);
   if(currentRole==='admin'){
     const employerSubmission=await getSubmission(c.id).catch(()=>null);
@@ -1426,6 +1731,17 @@ document.addEventListener('click',async e=>{
 });
 
 console.info('Jeffdesign101 build:',JEFFDESIGN_BUILD);
+
+$('task-inbox-filter')?.addEventListener('change',renderTaskInbox);
+$('task-detail-close')?.addEventListener('click',()=>$('task-detail-backdrop').classList.add('hidden'));
+$('task-detail-backdrop')?.addEventListener('click',e=>{if(e.target===$('task-detail-backdrop'))$('task-detail-backdrop').classList.add('hidden')});
+document.addEventListener('click',async e=>{
+  const open=e.target.closest('[data-admin-open-task]');
+  if(open){await openAdminTaskDetail(open.dataset.adminOpenTask);return}
+  const toggle=e.target.closest('[data-admin-toggle-done]');
+  if(toggle){await toggleTaskDone(toggle.dataset.adminToggleDone);return}
+});
+
 initializeAuth().catch(e=>{
   console.error(e);lockUI(true);$('login-error').textContent=e.message||'Could not initialize CRM.';
 });

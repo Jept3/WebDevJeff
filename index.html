@@ -64,6 +64,9 @@
         <button class="nav-link" data-view="projects">
           <span>◇</span><span>Projects</span>
         </button>
+        <button class="nav-link" data-view="task-inbox">
+          <span>☷</span><span>Task Inbox</span><span id="task-inbox-badge" class="nav-badge hidden">0</span>
+        </button>
         <button class="nav-link" data-view="time">
           <span>◷</span><span>Time Log</span>
         </button>
@@ -225,6 +228,26 @@
       </section>
 
 
+
+
+      <section id="task-inbox-view" class="view">
+        <div class="page-intro glass">
+          <div>
+            <p class="eyebrow">EMPLOYER REQUESTS</p>
+            <h2>Task Inbox</h2>
+            <p>New tasks submitted by employers. Open a task to review it, then mark it complete when finished.</p>
+          </div>
+          <div class="page-intro-actions">
+            <select id="task-inbox-filter">
+              <option value="all">All tasks</option>
+              <option value="unread">Unread</option>
+              <option value="open">Open</option>
+              <option value="done">Completed</option>
+            </select>
+          </div>
+        </div>
+        <div id="task-inbox-list" class="task-inbox-list"></div>
+      </section>
 
       <section id="time-view" class="view">
         <div class="stats-grid">
@@ -409,6 +432,7 @@
           <button class="client-tab active" data-client-view="client-home">Overview</button>
           <button class="client-tab" data-client-view="client-tasks">Tasks</button>
           <button class="client-tab" data-client-view="client-files">Files</button>
+          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
           <button class="client-tab" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab" data-client-view="client-account">Account</button>
         </div>
@@ -421,6 +445,7 @@
           <button class="client-tab" data-client-view="client-home">Overview</button>
           <button class="client-tab active" data-client-view="client-tasks">Tasks</button>
           <button class="client-tab" data-client-view="client-files">Files</button>
+          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
           <button class="client-tab" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab" data-client-view="client-account">Account</button>
         </div>
@@ -431,10 +456,24 @@
           <button class="client-tab" data-client-view="client-home">Overview</button>
           <button class="client-tab" data-client-view="client-tasks">Tasks</button>
           <button class="client-tab active" data-client-view="client-files">Files</button>
+          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
           <button class="client-tab" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab" data-client-view="client-account">Account</button>
         </div>
         <div id="client-files-content"></div>
+      </section>
+
+
+      <section id="client-work-view" class="view client-portal-view">
+        <div class="client-portal-nav glass">
+          <button class="client-tab" data-client-view="client-home">Overview</button>
+          <button class="client-tab" data-client-view="client-tasks">Tasks</button>
+          <button class="client-tab" data-client-view="client-files">Files</button>
+          <button class="client-tab active" data-client-view="client-work">Work Monitor</button>
+          <button class="client-tab" data-client-view="client-invoices">Invoices</button>
+          <button class="client-tab" data-client-view="client-account">Account</button>
+        </div>
+        <div id="client-work-content"></div>
       </section>
 
       <section id="client-invoices-view" class="view client-portal-view">
@@ -442,6 +481,7 @@
           <button class="client-tab" data-client-view="client-home">Overview</button>
           <button class="client-tab" data-client-view="client-tasks">Tasks</button>
           <button class="client-tab" data-client-view="client-files">Files</button>
+          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
           <button class="client-tab active" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab" data-client-view="client-account">Account</button>
         </div>
@@ -453,6 +493,7 @@
           <button class="client-tab" data-client-view="client-home">Overview</button>
           <button class="client-tab" data-client-view="client-tasks">Tasks</button>
           <button class="client-tab" data-client-view="client-files">Files</button>
+          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
           <button class="client-tab" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab active" data-client-view="client-account">Account</button>
         </div>
@@ -649,6 +690,20 @@
   </div>
 
 
+
+  <div id="task-detail-backdrop" class="modal-backdrop hidden">
+    <div class="modal glass task-detail-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">EMPLOYER TASK</p>
+          <h3 id="task-detail-title">Task details</h3>
+        </div>
+        <button id="task-detail-close" class="icon-btn">×</button>
+      </div>
+      <div id="task-detail-content"></div>
+    </div>
+  </div>
+
   <div id="invoice-preview-backdrop" class="modal-backdrop hidden">
     <div class="modal glass invoice-preview-modal">
       <div class="modal-head">
@@ -662,6 +717,6 @@
   <div id="toast" class="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=20260903b"></script>
-  <script src="app.js?v=employer-routing-fix-20260903"></script>
+  <script src="app.js?v=professional-task-crm-20260903"></script>
 </body>
 </html>
