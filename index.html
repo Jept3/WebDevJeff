@@ -36,7 +36,7 @@
         <button type="submit" class="btn btn-primary login-submit">Login</button>
         <button type="button" id="create-account" class="btn btn-ghost login-submit hidden">Create client account</button>
       </form>
-      <small class="login-note">Secure Jeffdesign101 client access. Use the username and password provided by your VA.</small>
+      <small class="login-note">Secure Jeffdesign101 employer access. Use the username and password provided by your VA.</small>
     </div>
   </div>
 
@@ -398,7 +398,7 @@
       <section id="client-home-view" class="view client-portal-view">
         <div class="client-portal-header glass">
           <div>
-            <p class="eyebrow">CLIENT PORTAL</p>
+            <p class="eyebrow">EMPLOYER PORTAL</p>
             <h2 id="portal-client-name">My Project</h2>
             <p id="portal-client-subtitle">Jeffdesign101 project workspace</p>
           </div>
@@ -408,7 +408,6 @@
         <div class="client-portal-nav glass">
           <button class="client-tab active" data-client-view="client-home">Overview</button>
           <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-progress">Progress</button>
           <button class="client-tab" data-client-view="client-files">Files</button>
           <button class="client-tab" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab" data-client-view="client-account">Account</button>
@@ -421,31 +420,16 @@
         <div class="client-portal-nav glass">
           <button class="client-tab" data-client-view="client-home">Overview</button>
           <button class="client-tab active" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-progress">Progress</button>
           <button class="client-tab" data-client-view="client-files">Files</button>
           <button class="client-tab" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab" data-client-view="client-account">Account</button>
         </div>
         <div id="client-tasks-content"></div>
       </section>
-
-      <section id="client-progress-view" class="view client-portal-view">
+<section id="client-files-view" class="view client-portal-view">
         <div class="client-portal-nav glass">
           <button class="client-tab" data-client-view="client-home">Overview</button>
           <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab active" data-client-view="client-progress">Progress</button>
-          <button class="client-tab" data-client-view="client-files">Files</button>
-          <button class="client-tab" data-client-view="client-invoices">Invoices</button>
-          <button class="client-tab" data-client-view="client-account">Account</button>
-        </div>
-        <div id="client-progress-content"></div>
-      </section>
-
-      <section id="client-files-view" class="view client-portal-view">
-        <div class="client-portal-nav glass">
-          <button class="client-tab" data-client-view="client-home">Overview</button>
-          <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-progress">Progress</button>
           <button class="client-tab active" data-client-view="client-files">Files</button>
           <button class="client-tab" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab" data-client-view="client-account">Account</button>
@@ -457,7 +441,6 @@
         <div class="client-portal-nav glass">
           <button class="client-tab" data-client-view="client-home">Overview</button>
           <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-progress">Progress</button>
           <button class="client-tab" data-client-view="client-files">Files</button>
           <button class="client-tab active" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab" data-client-view="client-account">Account</button>
@@ -469,7 +452,6 @@
         <div class="client-portal-nav glass">
           <button class="client-tab" data-client-view="client-home">Overview</button>
           <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-progress">Progress</button>
           <button class="client-tab" data-client-view="client-files">Files</button>
           <button class="client-tab" data-client-view="client-invoices">Invoices</button>
           <button class="client-tab active" data-client-view="client-account">Account</button>
@@ -496,7 +478,7 @@
     <div class="modal glass">
       <div class="modal-head">
         <div>
-          <p class="eyebrow">CLIENT RECORD</p>
+          <p class="eyebrow">EMPLOYER RECORD</p>
           <h3 id="modal-title">Add client</h3>
         </div>
         <button id="modal-close" class="icon-btn">×</button>
@@ -604,7 +586,7 @@
 
         <div class="full credential-panel">
           <div>
-            <span class="credential-title">Client Login Credentials</span>
+            <span class="credential-title">Employer Login Credentials</span>
             <small>Create or reset the client login. Password is sent securely to the server function and is never stored in the CRM database.</small>
           </div>
           <div class="credential-actions credential-actions-v2">
@@ -680,6 +662,6 @@
   <div id="toast" class="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=20260903b"></script>
-  <script src="app.js?v=portal-render-fix-20260903"></script>
+  <script src="app.js?v=employer-portal-20260903"></script>
 </body>
 </html>

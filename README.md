@@ -502,3 +502,93 @@ Example:
 - Total: `$21.00`
 
 Manual invoices do not require a Time Log entry. Time Log mode still prevents the same tracked work entry from being invoiced twice.
+
+
+## Client credential creation fixes
+
+This build fixes three issues:
+
+1. Client temporary password now has a **Show / Hide** button.
+2. Username/password fields no longer trigger normal client-record autosave.
+3. For a new client, **Save Client + Create / Reset Login** automatically saves the client first. You no longer need a separate Save step.
+
+## Edge Function: important Verify JWT setting
+
+For `admin-create-client-user`, turn **OFF** the Supabase platform's built-in **Verify JWT** setting.
+
+The function still securely authenticates the signed-in Admin inside the function using the Admin's access token and checks `profiles.role = 'admin'`.
+
+If using the Supabase CLI, this package includes:
+
+```toml
+[functions.admin-create-client-user]
+verify_jwt = false
+```
+
+in `supabase/config.toml`.
+
+If deploying through the Supabase Dashboard, open the function's settings/details and disable **Verify JWT**, then redeploy/update the function code using:
+
+`supabase/functions/admin-create-client-user/index.ts`
+
+The CRM now uses a direct HTTP request so it can display specific 401, 404, and runtime errors instead of only showing the generic "Failed to send a request to the Edge Function".
+
+
+## Client portal render fix
+
+This build fixes the runtime error:
+
+`renderClientPortal is not defined`
+
+The client portal functions were accidentally nested inside the page navigation function during a previous merge. They are now global and available immediately after Supabase authentication.
+
+No SQL migration, password reset, or new client account is required for this fix.
+
+
+# Employer Portal Correction
+
+The non-admin role is now treated as the **Employer**, not the VA client.
+
+## Roles
+
+### Admin / VA
+- manages all employers and website projects
+- receives employer tasks, project information, notes, and files
+- tracks work hours
+- generates invoices
+- sees employer submissions inside the Admin client record
+
+### Employer
+The employer portal contains:
+
+- Overview
+- Tasks
+- Files
+- Invoices
+- Account
+
+The **Progress** page has been removed from the employer portal.
+
+On Overview, the employer can:
+
+- create Current Requests / Tasks
+- enter detailed Project Information
+- enter Shared Project Notes
+- upload project files
+
+These fields autosave to Supabase and are visible from the Admin client record.
+
+## Refresh / Admin flash fix
+
+The app now stays behind the authentication loading shield until Supabase resolves the current user's role, preventing the Admin interface from briefly appearing when an Employer refreshes the page.
+
+## SQL update required
+
+Run the latest `supabase-schema.sql` once in Supabase SQL Editor.
+
+This adds:
+
+- `client_submissions.project_information`
+- `client_submissions.shared_notes`
+
+No new Employer username/password is required.

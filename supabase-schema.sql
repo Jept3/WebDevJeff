@@ -767,3 +767,17 @@ $$;
 
 revoke all on function public.resolve_login_email(text) from public;
 grant execute on function public.resolve_login_email(text) to anon, authenticated;
+
+
+-- ============================================================
+-- Employer Portal correction
+-- Employer supplies project information, shared notes, tasks, and files.
+-- ============================================================
+
+alter table public.client_submissions
+  add column if not exists project_information text not null default '',
+  add column if not exists shared_notes text not null default '';
+
+-- Existing submission RLS continues to apply:
+-- linked employer can edit when portal_permission = 'edit';
+-- admin can read employer submissions.
