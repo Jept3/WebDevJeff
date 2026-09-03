@@ -1,4 +1,4 @@
-const JEFFDESIGN_BUILD = 'null-auth-fix-2026-09-03';
+const JEFFDESIGN_BUILD = 'cdn-loader-fix-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -39,28 +39,89 @@ function configured(){
     !cfg.supabasePublishableKey.includes('YOUR_SUPABASE');
 }
 
+let supabaseLibraryPromise = null;
+
+function loadExternalScript(src, timeoutMs=8000){
+  return new Promise((resolve,reject)=>{
+    const existing=[...document.scripts].find(s=>s.src===src);
+    if(existing && window.supabase?.createClient){
+      resolve();
+      return;
+    }
+
+    const script=document.createElement('script');
+    script.src=src;
+    script.async=true;
+    script.crossOrigin='anonymous';
+
+    const timer=setTimeout(()=>{
+      script.remove();
+      reject(new Error(`Timed out loading ${src}`));
+    },timeoutMs);
+
+    script.onload=()=>{
+      clearTimeout(timer);
+      if(window.supabase?.createClient) resolve();
+      else reject(new Error('Supabase library loaded but did not initialize.'));
+    };
+    script.onerror=()=>{
+      clearTimeout(timer);
+      script.remove();
+      reject(new Error(`Could not load ${src}`));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureSupabaseLibrary(){
+  if(window.supabase?.createClient) return window.supabase;
+  if(supabaseLibraryPromise) return supabaseLibraryPromise;
+
+  supabaseLibraryPromise=(async()=>{
+    const sources=[
+      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+      'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js'
+    ];
+
+    let lastError=null;
+    for(const src of sources){
+      try{
+        await loadExternalScript(src,8000);
+        if(window.supabase?.createClient) return window.supabase;
+      }catch(error){
+        console.warn('Supabase library source failed:',src,error);
+        lastError=error;
+      }
+    }
+
+    throw new Error(
+      'Could not load the Supabase login library. Check your internet connection, browser extensions, or network blocking and try again.'
+    );
+  })();
+
+  try{
+    return await supabaseLibraryPromise;
+  }catch(error){
+    supabaseLibraryPromise=null;
+    throw error;
+  }
+}
+
 async function ensureSupabaseClient(){
   if(sb?.auth) return sb;
 
   if(!configured()){
     throw new Error('Supabase configuration is missing.');
   }
-  if(!window.supabase?.createClient){
-    throw new Error('Supabase library did not load. Refresh the page and check your internet connection.');
-  }
 
-  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+  const supabaseLib=await ensureSupabaseLibrary();
+  sb=supabaseLib.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
 
   if(!sb?.auth){
     sb=null;
     throw new Error('Supabase client could not initialize.');
   }
 
-  const loginBtn=$('login-submit');
-  if(loginBtn){
-    loginBtn.disabled=false;
-    loginBtn.textContent='Login';
-  }
   return sb;
 }
 
@@ -182,11 +243,11 @@ async function initializeAuth(){
     if($('login-submit')){$('login-submit').disabled=true;$('login-submit').textContent='Not configured'}
     return;
   }
-  await ensureSupabaseClient();
-  const {data}=await sb.auth.getSession();
+  const client=await ensureSupabaseClient();
+  const {data}=await client.auth.getSession();
   session=data.session;
   if(session) await onSignedIn(); else { lockUI(true); document.body.classList.remove('auth-loading'); }
-  sb.auth.onAuthStateChange((_event,newSession)=>{
+  client.auth.onAuthStateChange((_event,newSession)=>{
     session=newSession;
     if(newSession){
       // Run Supabase queries after the auth callback finishes.
@@ -1857,5 +1918,13 @@ document.addEventListener('click',async e=>{
 });
 
 initializeAuth().catch(e=>{
-  console.error(e);lockUI(true);$('login-error').textContent=e.message||'Could not initialize CRM.';
+  console.error('CRM initialization failed:',e);
+  lockUI(true);
+  document.body.classList.remove('auth-loading');
+  $('login-error').textContent=e.message||'Could not initialize CRM.';
+  const btn=$('login-submit');
+  if(btn){
+    btn.disabled=false;
+    btn.textContent='Retry Login';
+  }
 });
