@@ -1,77 +1,262 @@
-# LimeCRM
+# LimeCRM — Supabase Cloud Edition
 
-A modern, dependency-free client and website project CRM designed for GitHub Pages.
+This is the upgraded multi-user version of LimeCRM for GitHub Pages + Supabase.
 
-## Features
+## What changed
 
-- Dashboard with client totals, ongoing/completed counts, average completion time
-- Donut chart for project statuses
-- Monthly client activity graph
-- Client directory
-- Click a client name/row to open a detailed client page
-- Back button and client-page search
-- Global search
-- Professional sorting:
-  - Last updated
-  - Name A–Z / Z–A
-  - Newest / oldest
-  - Deadline soonest
-- Status filtering
-- Project monitoring board:
-  - Ongoing
-  - In Review
-  - Waiting
-  - Complete
-  - Paused
-- Add, edit and delete client records
-- Browser autosave with localStorage
-- Responsive mobile layout
-- Lime-green glassmorphism UI with subtle animation
-- No build tools and no dependencies
+- Real email/password authentication with Supabase Auth
+- Admin and Client roles
+- Admin can see every client
+- Client can only see the active client record matching their authenticated email
+- Cloud PostgreSQL database instead of browser localStorage
+- Private cloud file uploads using Supabase Storage
+- Client upload portal for PDF, Word, Excel, images, ZIP, and other files
+- Client-supplied information with autosave
+- Admin client directory, Edit/Delete, Trash, Restore, Delete Forever
+- Dashboard, status donut, project graph and project board
+- GitHub Pages compatible
 
-## Important data note
+## 1. Create a Supabase project
 
-This version stores CRM data in the browser using `localStorage`.
+Create a project at Supabase.
 
-That makes it perfect for a simple private/single-browser admin workspace hosted as a static GitHub Pages site. It does **not** sync data between devices and it does not provide login/security or a shared database.
+In the Supabase dashboard, copy:
 
-For a public production CRM with multiple users, authentication, shared data, backups or file uploads, connect the frontend to a backend such as Supabase, Firebase, Appwrite, PocketBase, or your own API.
+- Project URL
+- Publishable key (or anon key for older projects)
 
-## Publish on GitHub Pages
-
-1. Create a new GitHub repository.
-2. Upload:
-   - `index.html`
-   - `styles.css`
-   - `app.js`
-3. Commit the files.
-4. Open repository **Settings → Pages**.
-5. Under **Build and deployment**, choose **Deploy from a branch**.
-6. Choose your main branch and `/ (root)`.
-7. Save.
-
-GitHub will provide the public Pages URL after deployment.
-
-## Customize
-
-Open `styles.css` and edit the variables at the top:
-
-```css
-:root {
-  --lime: #baff3a;
-  --lime2: #91ef19;
-}
-```
-
-Open `app.js` to modify sample data, statuses or default behavior.
-
-## Reset demo data
-
-Open browser developer tools and run:
+Open `config.js` and replace:
 
 ```js
-localStorage.removeItem('limeCRM.clients.v1');
-location.reload();
+window.LIME_CRM_CONFIG = {
+  supabaseUrl: "YOUR_SUPABASE_URL",
+  supabasePublishableKey: "YOUR_SUPABASE_PUBLISHABLE_KEY"
+};
 ```
 
-The sample clients will be recreated.
+Never put the **service_role** key in this website.
+
+## 2. Create the database and security policies
+
+Open:
+
+`supabase-schema.sql`
+
+Copy the full file into:
+
+**Supabase Dashboard → SQL Editor**
+
+Run it once.
+
+This creates:
+
+- `profiles`
+- `clients`
+- `client_submissions`
+- private `client-files` Storage bucket
+- Row Level Security policies
+- Admin/client access helpers
+
+## 3. Create your Admin account
+
+Open the CRM after configuring it and click **Create client account** using your own admin email/password.
+
+Confirm the email if Supabase asks you to.
+
+Then run this in the Supabase SQL Editor:
+
+```sql
+update public.profiles
+set role = 'admin'
+where lower(email) = lower('YOUR_ADMIN_EMAIL@example.com');
+```
+
+Sign out and sign back in. You will now see the Admin dashboard.
+
+## 4. Add a client
+
+From Admin:
+
+1. Click **Add Client**.
+2. Enter the client's real email address.
+3. Add the website/project information.
+4. Save.
+
+The email is important because it links the secure client portal to that client.
+
+## 5. Client account
+
+Give the client your GitHub Pages URL.
+
+They click **Create client account** and use the **same email address** you entered in their client record.
+
+After they verify and sign in:
+
+- they see only their own project
+- they can add information requested by you
+- their information autosaves
+- they can upload files
+- they cannot see other clients
+- they cannot access the Admin dashboard/trash
+
+## 6. GitHub Pages
+
+Upload these files to your GitHub repository root:
+
+- `index.html`
+- `styles.css`
+- `app.js`
+- `config.js`
+
+`supabase-schema.sql` can stay in the repository as setup documentation, or you can keep it private.
+
+Then enable:
+
+**GitHub → Repository Settings → Pages → Deploy from a branch → main → /root**
+
+## Security model
+
+The browser contains only the Supabase publishable/anon key. That key is designed for public/browser use.
+
+Sensitive access is controlled inside PostgreSQL with Row Level Security (RLS):
+
+- Admin role → all client records
+- Client role → only the client record whose email matches the authenticated account
+- Client submissions → only that signed-in client and admin
+- Files → private bucket; only admin or the matching client can access the project folder
+
+Do not disable RLS and do not place a Supabase `service_role` key in `config.js`.
+
+## Recommended Supabase settings
+
+For client accounts:
+
+- Enable Email provider
+- Keep email confirmation enabled for stronger identity verification
+- Set your GitHub Pages URL as the Site URL / allowed Redirect URL
+- Configure SMTP later if you want branded/reliable production email delivery
+
+## Files
+
+Supabase Storage limits depend on your Supabase project/plan and configuration. You can also add client-side size validation if you want a strict per-file limit.
+
+
+# Client Portal v2 Upgrade
+
+This edition adds the client-facing workflow requested:
+
+## Client portal
+
+After login, a client sees the ongoing project linked to their account.
+
+They can see:
+
+- current project status
+- project timeline
+- project overview
+- deliverables
+- website setup
+- Task of the Day
+- project notes / information editor
+- project files
+
+## Task of the Day
+
+Clients with **Can Edit** permission can:
+
+- add daily tasks
+- mark tasks complete
+- delete tasks
+
+Tasks are stored in Supabase and are visible to the administrator.
+
+## Rich text information editor
+
+The client information area is no longer a plain textarea.
+
+It supports:
+
+- Bold
+- Italic
+- Underline
+- Highlight
+- Bulleted list
+- Numbered list
+- Clear formatting
+- Automatic clickable links when a full `https://...` link is typed
+- Autosave
+
+The formatted HTML and plain text are stored in `client_submissions`.
+
+## View Only / Can Edit
+
+Every client record now has a **Portal Permission** selector.
+
+`Can Edit`:
+- client can edit rich text information
+- client can create/update Task of the Day
+- client can upload and delete files
+
+`View Only`:
+- client can view project details
+- client can view existing tasks
+- client can open existing files
+- editing and uploads are blocked in the UI **and by Supabase RLS policies**
+
+## Username and password controlled by Admin
+
+The Admin edit form now includes:
+
+- Client username
+- Temporary password
+- **Create / Reset Login** button
+
+For security, the password is **not stored in the browser or clients table**.
+
+The button calls this Supabase Edge Function:
+
+`supabase/functions/admin-create-client-user/index.ts`
+
+The Edge Function uses the Supabase service role only on the server and creates/resets the real Auth user.
+
+The login page accepts either:
+
+- Client username
+- Client email
+
+## Deploy the Edge Function
+
+Install the Supabase CLI and link the project, then deploy:
+
+```bash
+supabase functions deploy admin-create-client-user
+```
+
+The hosted Supabase function automatically receives the project's standard Supabase environment variables, including the service-role credential used server-side.
+
+Do **not** place the service role key in `config.js`, `app.js`, GitHub Pages, or any browser code.
+
+## Database upgrade
+
+Run the latest `supabase-schema.sql` again in the Supabase SQL Editor.
+
+It adds:
+
+- `clients.client_username`
+- `clients.portal_permission`
+- `client_submissions.info_html`
+- `client_tasks`
+- username login resolver
+- updated RLS policies for View Only / Can Edit
+- Storage policies that honor portal permissions
+
+## Suggested workflow
+
+1. Admin creates a client record with the client's real email.
+2. Admin chooses a username.
+3. Admin chooses `Can Edit` or `View Only`.
+4. Admin enters a temporary password and clicks **Create / Reset Login**.
+5. Give the client the username + temporary password.
+6. Client logs in.
+7. Client sees only their own project portal.
+8. Client adds Task of the Day, rich-text project information, and files according to the permission you selected.

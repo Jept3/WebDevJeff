@@ -8,6 +8,37 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+  <div id="login-screen" class="login-screen">
+    <div class="login-card glass">
+      <div class="login-brand">
+        <div class="brand-mark">L</div>
+        <div>
+          <p class="eyebrow">SECURE ADMIN</p>
+          <h1>LimeCRM Login</h1>
+        </div>
+      </div>
+      <p class="login-copy">Sign in to access client records, files, project status and dashboard information.</p>
+      <form id="login-form">
+        <label>
+          <span>Username or email</span>
+          <input id="login-username" autocomplete="username" required placeholder="username or email" />
+        </label>
+        <label class="login-password-field">
+          <span>Password</span>
+          <div class="password-wrap">
+            <input id="login-password" type="password" autocomplete="current-password" required placeholder="Enter password" />
+            <button id="toggle-password" type="button" class="password-toggle">Show</button>
+          </div>
+        </label>
+        <div id="login-error" class="login-error"></div>
+        <button type="submit" class="btn btn-primary login-submit">Login</button>
+        <button type="button" id="create-account" class="btn btn-ghost login-submit">Create client account</button>
+      </form>
+      <small class="login-note">Secure cloud login powered by Supabase Auth. Client accounts only see records linked to their verified email.</small>
+    </div>
+  </div>
+
   <div class="noise"></div>
   <div class="orb orb-1"></div>
   <div class="orb orb-2"></div>
@@ -32,6 +63,9 @@
         <button class="nav-link" data-view="projects">
           <span>◇</span><span>Projects</span>
         </button>
+        <button class="nav-link" data-view="trash">
+          <span>♲</span><span>Trash</span>
+        </button>
       </nav>
 
       <div class="sidebar-card">
@@ -55,6 +89,7 @@
             <input id="global-search" type="search" placeholder="Search clients, sites, notes…" />
           </div>
           <button id="add-client-top" class="btn btn-primary">＋ Add Client</button>
+          <span id="role-badge" class="role-badge">...</span><button id="sign-out" class="btn btn-ghost">Sign out</button>
         </div>
       </header>
 
@@ -178,6 +213,21 @@
         </article>
       </section>
 
+
+      <section id="trash-view" class="view">
+        <article class="panel glass">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">RECYCLE BIN</p>
+              <h3>Deleted clients</h3>
+            </div>
+            <button id="empty-trash" class="btn btn-danger">Empty Trash</button>
+          </div>
+          <p class="muted" style="margin-top:-8px;margin-bottom:18px">Deleted clients stay here until you restore them or permanently remove them.</p>
+          <div id="trash-list" class="client-list"></div>
+        </article>
+      </section>
+
       <section id="client-detail-view" class="view">
         <div class="detail-toolbar">
           <button id="detail-back" class="btn btn-ghost">← Back</button>
@@ -290,6 +340,29 @@
             <span>Primary contact</span>
             <input id="client-contact" placeholder="Name / role" />
           </label>
+          <label>
+            <span>Client username</span>
+            <input id="client-username" placeholder="e.g. novadental" />
+          </label>
+          <label>
+            <span>Portal permission</span>
+            <select id="client-permission">
+              <option value="edit">Can Edit</option>
+              <option value="view">View Only</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="full credential-panel">
+          <div>
+            <span class="credential-title">Client Login Credentials</span>
+            <small>Create or reset the client login. Password is sent securely to the server function and is never stored in the CRM database.</small>
+          </div>
+          <div class="credential-actions">
+            <input id="client-temp-password" type="password" placeholder="Temporary password (8+ characters)" />
+            <button type="button" id="create-client-login" class="btn btn-ghost">Create / Reset Login</button>
+          </div>
+          <div id="credential-result" class="save-state"></div>
         </div>
 
         <label class="full">
@@ -301,6 +374,25 @@
           <span>Notes / next steps</span>
           <textarea id="client-notes" rows="4" placeholder="Feedback, credentials reminder, next action, design notes…"></textarea>
         </label>
+
+        <label class="full">
+          <span>Information from client</span>
+          <textarea id="client-submitted-info" rows="4" placeholder="Paste or type information supplied by the client. This field autosaves while editing an existing record."></textarea>
+        </label>
+
+        <div class="full upload-panel">
+          <div class="upload-head">
+            <div>
+              <span>Client files & attachments</span>
+              <small>PDF, Word, Excel, images, ZIP and other files</small>
+            </div>
+            <label class="btn btn-ghost upload-btn">
+              ＋ Upload Files
+              <input id="client-files" type="file" multiple hidden />
+            </label>
+          </div>
+          <div id="file-list" class="file-list"></div>
+        </div>
 
         <label class="full">
           <span>Tags</span>
@@ -322,6 +414,8 @@
   </div>
 
   <div id="toast" class="toast"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
