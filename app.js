@@ -1,4 +1,4 @@
-const JEFFDESIGN_BUILD = 'cdn-loader-fix-2026-09-03';
+const JEFFDESIGN_BUILD = 'stable-login-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -39,74 +39,6 @@ function configured(){
     !cfg.supabasePublishableKey.includes('YOUR_SUPABASE');
 }
 
-let supabaseLibraryPromise = null;
-
-function loadExternalScript(src, timeoutMs=8000){
-  return new Promise((resolve,reject)=>{
-    const existing=[...document.scripts].find(s=>s.src===src);
-    if(existing && window.supabase?.createClient){
-      resolve();
-      return;
-    }
-
-    const script=document.createElement('script');
-    script.src=src;
-    script.async=true;
-    script.crossOrigin='anonymous';
-
-    const timer=setTimeout(()=>{
-      script.remove();
-      reject(new Error(`Timed out loading ${src}`));
-    },timeoutMs);
-
-    script.onload=()=>{
-      clearTimeout(timer);
-      if(window.supabase?.createClient) resolve();
-      else reject(new Error('Supabase library loaded but did not initialize.'));
-    };
-    script.onerror=()=>{
-      clearTimeout(timer);
-      script.remove();
-      reject(new Error(`Could not load ${src}`));
-    };
-    document.head.appendChild(script);
-  });
-}
-
-async function ensureSupabaseLibrary(){
-  if(window.supabase?.createClient) return window.supabase;
-  if(supabaseLibraryPromise) return supabaseLibraryPromise;
-
-  supabaseLibraryPromise=(async()=>{
-    const sources=[
-      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
-      'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js'
-    ];
-
-    let lastError=null;
-    for(const src of sources){
-      try{
-        await loadExternalScript(src,8000);
-        if(window.supabase?.createClient) return window.supabase;
-      }catch(error){
-        console.warn('Supabase library source failed:',src,error);
-        lastError=error;
-      }
-    }
-
-    throw new Error(
-      'Could not load the Supabase login library. Check your internet connection, browser extensions, or network blocking and try again.'
-    );
-  })();
-
-  try{
-    return await supabaseLibraryPromise;
-  }catch(error){
-    supabaseLibraryPromise=null;
-    throw error;
-  }
-}
-
 async function ensureSupabaseClient(){
   if(sb?.auth) return sb;
 
@@ -114,8 +46,11 @@ async function ensureSupabaseClient(){
     throw new Error('Supabase configuration is missing.');
   }
 
-  const supabaseLib=await ensureSupabaseLibrary();
-  sb=supabaseLib.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+  if(!window.supabase?.createClient){
+    throw new Error('Supabase library failed to load. Refresh the page and try again.');
+  }
+
+  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
 
   if(!sb?.auth){
     sb=null;
@@ -244,21 +179,24 @@ async function initializeAuth(){
     return;
   }
   const client=await ensureSupabaseClient();
-  const {data}=await client.auth.getSession();
+  const {data,error}=await client.auth.getSession();
+  if(error) throw error;
   session=data.session;
   if(session) await onSignedIn(); else { lockUI(true); document.body.classList.remove('auth-loading'); }
   client.auth.onAuthStateChange((_event,newSession)=>{
     session=newSession;
     if(newSession){
-      // Run Supabase queries after the auth callback finishes.
-      // Awaiting database calls directly inside onAuthStateChange can deadlock sign-in.
-      setTimeout(()=>{
-        onSignedIn().catch(err=>{
-          console.error('Post-login load failed:',err);
-          lockUI(true);
-          $('login-error').textContent=err?.message||'Signed in, but the CRM could not load.';
-        });
-      },0);
+      // The form submit already loads the workspace after sign-in.
+      // This callback mainly handles restored sessions / external auth changes.
+      if(!profile){
+        setTimeout(()=>{
+          onSignedIn().catch(err=>{
+            console.error('Post-login load failed:',err);
+            lockUI(true);
+            $('login-error').textContent=err?.message||'Signed in, but the CRM could not load.';
+          });
+        },0);
+      }
     } else {
       profile=null;clients=[];trash=[];lockUI(true);
     }
@@ -1850,12 +1788,16 @@ $('login-form')?.addEventListener('submit',async e=>{
     if(error) throw error;
 
     session=data.session;
-    $('login-error').textContent='';
+    $('login-error').textContent='Loading workspace…';
 
-    // onAuthStateChange will load the role/portal.
+    // Load immediately after sign-in. The auth callback may also fire,
+    // but this guarantees the UI progresses even if that event is delayed.
+    await onSignedIn();
+    $('login-error').textContent='';
   }catch(err){
     console.error('Login failed:',err);
     $('login-error').textContent=err?.message||'Unable to sign in. Please try again.';
+    console.error('Jeffdesign101 login error details:',err);
   }finally{
     btn.disabled=false;
     btn.textContent='Login';
