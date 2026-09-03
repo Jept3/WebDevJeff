@@ -428,3 +428,119 @@ using (
     )
   )
 );
+
+
+-- ============================================================
+-- VA Time Tracking + Invoice Module
+-- ============================================================
+
+create table if not exists public.billing_settings (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  hourly_rate numeric(10,2) not null default 3.00,
+  business_name text default 'Webdev VA',
+  full_name text,
+  email text,
+  phone text,
+  address text,
+  payment_instructions text,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.billing_settings enable row level security;
+grant select, insert, update on public.billing_settings to authenticated;
+
+drop policy if exists "billing_settings_admin_own" on public.billing_settings;
+create policy "billing_settings_admin_own"
+on public.billing_settings for all
+to authenticated
+using (user_id = auth.uid() and public.is_admin())
+with check (user_id = auth.uid() and public.is_admin());
+
+create table if not exists public.time_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  client_id uuid not null references public.clients(id) on delete cascade,
+  task text,
+  clock_in timestamptz not null default now(),
+  clock_out timestamptz,
+  hours numeric(10,4),
+  hourly_rate numeric(10,2) not null default 3.00,
+  invoice_id uuid,
+  created_at timestamptz not null default now()
+);
+
+alter table public.time_entries enable row level security;
+grant select, insert, update, delete on public.time_entries to authenticated;
+
+drop policy if exists "time_entries_admin_all" on public.time_entries;
+create policy "time_entries_admin_all"
+on public.time_entries for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "time_entries_client_view_own_project" on public.time_entries;
+create policy "time_entries_client_view_own_project"
+on public.time_entries for select
+to authenticated
+using (
+  exists (
+    select 1 from public.clients c
+    where c.id=time_entries.client_id
+      and c.deleted_at is null
+      and lower(c.email)=lower(coalesce(auth.jwt()->>'email',''))
+  )
+);
+
+create table if not exists public.invoices (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  client_id uuid not null references public.clients(id) on delete cascade,
+  invoice_number text not null unique,
+  invoice_date date not null default current_date,
+  period_start date,
+  period_end date,
+  hours numeric(10,2) not null default 0,
+  hourly_rate numeric(10,2) not null default 3.00,
+  total numeric(12,2) not null default 0,
+  description text default 'Online Work',
+  notes text,
+  status text not null default 'pending' check (status in ('draft','pending','paid')),
+  paid_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.invoices enable row level security;
+grant select, insert, update, delete on public.invoices to authenticated;
+
+drop policy if exists "invoices_admin_all" on public.invoices;
+create policy "invoices_admin_all"
+on public.invoices for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "invoices_client_view_own" on public.invoices;
+create policy "invoices_client_view_own"
+on public.invoices for select
+to authenticated
+using (
+  exists (
+    select 1 from public.clients c
+    where c.id=invoices.client_id
+      and c.deleted_at is null
+      and lower(c.email)=lower(coalesce(auth.jwt()->>'email',''))
+  )
+);
+
+-- Link time entries to invoices after invoices table exists.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname='time_entries_invoice_id_fkey'
+  ) then
+    alter table public.time_entries
+      add constraint time_entries_invoice_id_fkey
+      foreign key (invoice_id) references public.invoices(id) on delete set null;
+  end if;
+end $$;

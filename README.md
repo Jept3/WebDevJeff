@@ -260,3 +260,85 @@ It adds:
 6. Client logs in.
 7. Client sees only their own project portal.
 8. Client adds Task of the Day, rich-text project information, and files according to the permission you selected.
+
+
+# VA Workflow Upgrade
+
+This version is designed around a Virtual Assistant / web-development workflow.
+
+## Time Login / Logout
+
+Admin has a **Time Log** page.
+
+Workflow:
+
+1. Select client.
+2. Enter what you are working on.
+3. Click **Login / Start**.
+4. Work timer runs live.
+5. Click **Logout / Stop** when finished.
+6. The hours are automatically saved to Supabase.
+7. Dollar value is automatically calculated using the active hourly rate.
+
+Default hourly rate is **$3.00/hour** and can be changed under **Rate & Billing**.
+
+## Rate & Billing Settings
+
+Admin can change:
+
+- hourly rate
+- business / VA name
+- full name
+- email
+- phone
+- address
+- payment instructions
+
+These values are used automatically in invoices.
+
+## Invoice Generator
+
+Admin can:
+
+- choose a client
+- choose work-period start/end
+- automatically collect uninvoiced time entries
+- calculate billable hours
+- use the current hourly rate
+- preview a professional invoice
+- create the invoice
+- mark invoice Paid
+
+Time entries included in an invoice are marked as invoiced so they are not billed twice.
+
+## Client Invoice Page
+
+Clients can access the **Invoices** page.
+
+They can see:
+
+- Incoming / pending invoices
+- Paid invoices
+- Hours
+- Hourly rate
+- Invoice total
+- Invoice date
+- Work period
+- Professional invoice preview
+
+Clients cannot create or mark invoices paid.
+
+## Database update
+
+Run the latest `supabase-schema.sql` in the Supabase SQL Editor again.
+
+It adds:
+
+- `billing_settings`
+- `time_entries`
+- `invoices`
+- Row Level Security policies for admin and client access
+
+## Important
+
+The site records work-session timestamps and calculates billable time. For invoicing, review the generated hours before sending an invoice to ensure your records match your actual work agreement with the client.

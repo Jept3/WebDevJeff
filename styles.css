@@ -358,3 +358,56 @@ body.locked .noise{filter:blur(5px);pointer-events:none;user-select:none}
   .portal-grid{grid-template-columns:1fr}.portal-card.full{grid-column:auto}
   .credential-actions{grid-template-columns:1fr}.task-add{grid-template-columns:1fr}
 }
+
+
+/* VA workflow: timer + invoices */
+.admin-only-block{display:block}
+.client-role .admin-only-block,
+.client-role .nav-link[data-view="time"],
+.client-role .nav-link[data-view="settings"]{display:none!important}
+
+.timer-card{display:grid;grid-template-columns:1fr 1.25fr;gap:18px;align-items:center}
+.timer-display{font-size:52px;font-weight:900;letter-spacing:-.04em;margin-bottom:8px}
+.timer-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.timer-input{height:44px;background:#101713;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:0 12px;outline:none}
+.timer-controls .btn{min-height:44px}
+
+.invoice-list{display:grid;gap:10px}
+.invoice-row{
+  border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:17px;padding:14px;
+  display:grid;grid-template-columns:1.4fr .8fr .8fr .8fr auto;gap:12px;align-items:center
+}
+.invoice-row strong{display:block}.invoice-row small{display:block;color:var(--muted);margin-top:3px}
+.invoice-amount{font-size:17px;font-weight:850}
+.invoice-status{display:inline-flex;padding:6px 9px;border-radius:999px;font-size:10px;font-weight:850;border:1px solid}
+.invoice-status.pending{color:#ffd789;background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.2)}
+.invoice-status.paid{color:#8cf6b4;background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.2)}
+.invoice-status.draft{color:#c9b7ff;background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.2)}
+.invoice-builder{display:grid;gap:14px}
+.invoice-live-total{
+  display:flex;justify-content:flex-end;gap:30px;padding:14px;border:1px solid var(--line);
+  background:rgba(186,255,58,.025);border-radius:15px
+}
+.invoice-live-total span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+.invoice-live-total strong{display:block;margin-top:4px;font-size:19px}
+.invoice-preview-modal{width:min(980px,100%)}
+.invoice-paper{
+  background:#fff;color:#111;border-radius:10px;padding:34px;box-shadow:0 20px 60px rgba(0,0,0,.3)
+}
+.invoice-paper *{color:inherit}
+.invoice-paper-header{display:grid;grid-template-columns:1.3fr .7fr;gap:24px;padding-bottom:20px;border-bottom:3px solid #162a21}
+.invoice-paper h1{font-size:38px;margin:0;letter-spacing:.08em;text-align:right}
+.invoice-brand h2{font-size:22px;margin:0 0 6px}.invoice-brand p{margin:3px 0;color:#444;font-size:12px}
+.invoice-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;margin-top:10px}.invoice-meta span{font-size:11px;color:#555}.invoice-meta strong{font-size:12px}
+.invoice-client-box{margin:22px 0;padding:15px;background:#f4f7f4;border-radius:8px}
+.invoice-table{width:100%;border-collapse:collapse;margin-top:18px}.invoice-table th{background:#17392c;color:#fff;padding:10px;text-align:left;font-size:11px}.invoice-table td{padding:11px 10px;border-bottom:1px solid #ddd;font-size:12px}
+.invoice-total-box{display:flex;justify-content:flex-end;margin-top:12px}.invoice-total-box div{min-width:260px;display:flex;justify-content:space-between;padding:12px 14px;background:#edf5ef;font-size:17px;font-weight:850}
+.invoice-payment{margin-top:24px;padding-top:16px;border-top:1px solid #bbb}.invoice-payment h4{margin:0 0 8px}.invoice-payment p{white-space:pre-wrap;font-size:12px;line-height:1.5}
+@media(max-width:900px){
+  .timer-card{grid-template-columns:1fr}.invoice-row{grid-template-columns:1fr 1fr}.invoice-row .row-actions{grid-column:1/-1}
+}
+@media(max-width:760px){
+  .nav{grid-template-columns:repeat(4,1fr);overflow-x:auto}
+  .timer-display{font-size:40px}.timer-controls{grid-template-columns:1fr}.invoice-row{grid-template-columns:1fr}
+  .invoice-live-total{justify-content:space-between;gap:12px}.invoice-paper{padding:20px}.invoice-paper-header{grid-template-columns:1fr}.invoice-paper h1{text-align:left;font-size:30px}
+}

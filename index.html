@@ -63,6 +63,15 @@
         <button class="nav-link" data-view="projects">
           <span>◇</span><span>Projects</span>
         </button>
+        <button class="nav-link" data-view="time">
+          <span>◷</span><span>Time Log</span>
+        </button>
+        <button class="nav-link" data-view="invoices">
+          <span>▤</span><span>Invoices</span>
+        </button>
+        <button class="nav-link" data-view="settings">
+          <span>⚙</span><span>Rate & Billing</span>
+        </button>
         <button class="nav-link" data-view="trash">
           <span>♲</span><span>Trash</span>
         </button>
@@ -71,8 +80,8 @@
       <div class="sidebar-card">
         <div class="pulse-dot"></div>
         <div>
-          <strong>Autosave enabled</strong>
-          <small>Stored in this browser</small>
+          <strong>Cloud autosave enabled</strong>
+          <small>Saved securely to Supabase</small>
         </div>
       </div>
     </aside>
@@ -213,6 +222,105 @@
         </article>
       </section>
 
+
+
+      <section id="time-view" class="view">
+        <div class="stats-grid">
+          <article class="stat-card glass"><p>Today</p><div class="stat-number" id="time-today">0.00h</div><small>Tracked work time</small></article>
+          <article class="stat-card glass"><p>This week</p><div class="stat-number" id="time-week">0.00h</div><small>Billable hours</small></article>
+          <article class="stat-card glass"><p>Current rate</p><div class="stat-number" id="time-rate">$3.00</div><small>Per hour</small></article>
+          <article class="stat-card glass"><p>Uninvoiced</p><div class="stat-number" id="time-uninvoiced">$0.00</div><small>Ready to invoice</small></article>
+        </div>
+
+        <article class="panel glass">
+          <div class="panel-head">
+            <div><p class="eyebrow">WORK TIMER</p><h3>Login / Logout Work Session</h3></div>
+            <span id="timer-status" class="status-chip status-paused">● Not working</span>
+          </div>
+          <div class="timer-card">
+            <div>
+              <div class="timer-display" id="live-timer">00:00:00</div>
+              <div class="muted" id="timer-client-label">Select a client before starting work.</div>
+            </div>
+            <div class="timer-controls">
+              <select id="timer-client" class="select"></select>
+              <input id="timer-task" class="timer-input" placeholder="What are you working on?" />
+              <button id="clock-in" class="btn btn-primary">▶ Login / Start</button>
+              <button id="clock-out" class="btn btn-danger">■ Logout / Stop</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel glass">
+          <div class="panel-head">
+            <div><p class="eyebrow">WORK HISTORY</p><h3>Time entries</h3></div>
+          </div>
+          <div id="time-entry-list" class="invoice-list"></div>
+        </article>
+      </section>
+
+      <section id="invoices-view" class="view">
+        <div class="stats-grid">
+          <article class="stat-card glass"><p>Incoming</p><div class="stat-number" id="invoice-pending-count">0</div><small>Awaiting payment</small></article>
+          <article class="stat-card glass"><p>Paid</p><div class="stat-number" id="invoice-paid-count">0</div><small>Completed invoices</small></article>
+          <article class="stat-card glass"><p>Outstanding</p><div class="stat-number" id="invoice-outstanding">$0.00</div><small>Amount due</small></article>
+          <article class="stat-card glass"><p>Total paid</p><div class="stat-number" id="invoice-paid-total">$0.00</div><small>Recorded payments</small></article>
+        </div>
+
+        <article class="panel glass admin-only-block">
+          <div class="panel-head">
+            <div><p class="eyebrow">CREATE BILL</p><h3>Generate Invoice</h3></div>
+          </div>
+          <div class="invoice-builder">
+            <div class="form-grid">
+              <label><span>Client</span><select id="invoice-client"></select></label>
+              <label><span>Invoice number</span><input id="invoice-number" placeholder="INV-1001" /></label>
+              <label><span>Invoice date</span><input id="invoice-date" type="date" /></label>
+              <label><span>Work period start</span><input id="invoice-start" type="date" /></label>
+              <label><span>Work period end</span><input id="invoice-end" type="date" /></label>
+              <label><span>Hourly rate</span><input id="invoice-rate" type="number" min="0" step="0.01" /></label>
+            </div>
+            <label class="full"><span>Description</span><input id="invoice-description" value="Online Work" /></label>
+            <label class="full"><span>Notes / payment instructions</span><textarea id="invoice-notes" rows="3" placeholder="Payment instructions, reference, notes..."></textarea></label>
+            <div class="invoice-live-total">
+              <div><span>Billable hours</span><strong id="invoice-hours-preview">0.00 hrs</strong></div>
+              <div><span>Total</span><strong id="invoice-total-preview">$0.00</strong></div>
+            </div>
+            <div class="modal-actions">
+              <div></div>
+              <div class="right-actions">
+                <button id="preview-invoice" class="btn btn-ghost">Preview</button>
+                <button id="create-invoice" class="btn btn-primary">Create Invoice</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel glass">
+          <div class="panel-head">
+            <div><p class="eyebrow">BILLING HISTORY</p><h3>Incoming & Paid Invoices</h3></div>
+          </div>
+          <div id="invoice-list" class="invoice-list"></div>
+        </article>
+      </section>
+
+      <section id="settings-view" class="view">
+        <article class="panel glass">
+          <div class="panel-head">
+            <div><p class="eyebrow">BILLING SETTINGS</p><h3>Hourly Rate & Payment Details</h3></div>
+          </div>
+          <div class="form-grid">
+            <label><span>Default hourly rate (USD)</span><input id="default-hourly-rate" type="number" min="0" step="0.01" value="3.00" /></label>
+            <label><span>Business / VA name</span><input id="billing-business-name" placeholder="Webdev VA" /></label>
+            <label><span>Your full name</span><input id="billing-name" placeholder="Your name" /></label>
+            <label><span>Email</span><input id="billing-email" type="email" /></label>
+            <label><span>Phone</span><input id="billing-phone" /></label>
+            <label><span>Address</span><input id="billing-address" /></label>
+          </div>
+          <label class="full"><span>Payment instructions</span><textarea id="billing-payment" rows="4" placeholder="Example: Please send payment through Wise..."></textarea></label>
+          <div class="modal-actions"><div></div><button id="save-billing-settings" class="btn btn-primary">Save Billing Settings</button></div>
+        </article>
+      </section>
 
       <section id="trash-view" class="view">
         <article class="panel glass">
@@ -410,6 +518,17 @@
           </div>
         </div>
       </form>
+    </div>
+  </div>
+
+
+  <div id="invoice-preview-backdrop" class="modal-backdrop hidden">
+    <div class="modal glass invoice-preview-modal">
+      <div class="modal-head">
+        <div><p class="eyebrow">INVOICE PREVIEW</p><h3>Professional Invoice</h3></div>
+        <button id="invoice-preview-close" class="icon-btn">×</button>
+      </div>
+      <div id="invoice-preview-content"></div>
     </div>
   </div>
 

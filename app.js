@@ -22,6 +22,11 @@ let activeClientId = null;
 let detailReturnView = 'clients';
 let formAutosaveTimer = null;
 let submissionAutosaveTimer = null;
+let workSession = null;
+let workTimerInterval = null;
+let timeEntries = [];
+let invoices = [];
+let billingSettings = null;
 
 function configured(){
   return cfg.supabaseUrl && cfg.supabasePublishableKey &&
@@ -99,10 +104,13 @@ async function loadCloudData(){
     clients=rows.filter(x=>!x.deletedAt);
     trash=[];
   }
+  await loadBillingSettings();
+  await loadTimeEntries();
+  await loadInvoices();
   renderAll();
 }
 function renderAll(){
-  updateDashboard(); renderClients(); renderProjectBoard(); renderTrash();
+  updateDashboard(); renderClients(); renderProjectBoard(); renderTrash(); renderTimePage(); renderInvoicesPage(); renderBillingSettings();
 }
 async function onSignedIn(){
   lockUI(false);
@@ -138,17 +146,203 @@ async function initializeAuth(){
 }
 
 function setView(view){
-  if(currentRole!=='admin' && ['dashboard','projects','trash','clients'].includes(view)){
+  if(currentRole!=='admin' && ['dashboard','projects','trash','clients','time','settings'].includes(view)){
     view='client-detail';
   }
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  
+async function loadBillingSettings(){
+  if(!sb||!session)return;
+  const {data,error}=await sb.from('billing_settings').select('*').eq('user_id',session.user.id).maybeSingle();
+  if(error){console.warn(error);return}
+  billingSettings=data||{
+    hourly_rate:3,business_name:'Webdev VA',full_name:'',email:session.user.email||'',
+    phone:'',address:'Philippines',payment_instructions:''
+  };
+}
+async function saveBillingSettings(){
+  if(currentRole!=='admin')return;
+  const payload={
+    user_id:session.user.id,
+    hourly_rate:parseFloat($('default-hourly-rate').value||'3'),
+    business_name:$('billing-business-name').value.trim(),
+    full_name:$('billing-name').value.trim(),
+    email:$('billing-email').value.trim(),
+    phone:$('billing-phone').value.trim(),
+    address:$('billing-address').value.trim(),
+    payment_instructions:$('billing-payment').value.trim()
+  };
+  const {error}=await sb.from('billing_settings').upsert(payload,{onConflict:'user_id'});
+  if(error){showToast(error.message);return}
+  billingSettings=payload;showToast('Billing settings saved');renderTimePage();renderInvoicesPage();
+}
+function renderBillingSettings(){
+  if(!$('default-hourly-rate')||currentRole!=='admin')return;
+  const b=billingSettings||{};
+  $('default-hourly-rate').value=(b.hourly_rate??3);
+  $('billing-business-name').value=b.business_name||'Webdev VA';
+  $('billing-name').value=b.full_name||'';
+  $('billing-email').value=b.email||session?.user?.email||'';
+  $('billing-phone').value=b.phone||'';
+  $('billing-address').value=b.address||'';
+  $('billing-payment').value=b.payment_instructions||'';
+}
+async function loadTimeEntries(){
+  if(!sb||!session)return;
+  let q=sb.from('time_entries').select('*').order('clock_in',{ascending:false});
+  const {data,error}=await q;
+  if(error){console.warn(error);return}
+  timeEntries=data||[];
+  workSession=timeEntries.find(x=>!x.clock_out)||null;
+  startLiveTimer();
+}
+function hoursBetween(a,b){
+  if(!a)return 0;
+  const start=new Date(a),end=b?new Date(b):new Date();
+  return Math.max(0,(end-start)/36e5);
+}
+function money(n){return '$'+Number(n||0).toFixed(2)}
+function startOfWeek(d=new Date()){
+  const x=new Date(d),day=x.getDay(),diff=(day===0?-6:1-day);x.setDate(x.getDate()+diff);x.setHours(0,0,0,0);return x;
+}
+function timeEntryHours(e){return Number(e.hours||hoursBetween(e.clock_in,e.clock_out))}
+function startLiveTimer(){
+  clearInterval(workTimerInterval);
+  const tick=()=>{
+    const el=$('live-timer');if(!el)return;
+    if(!workSession){el.textContent='00:00:00';return}
+    const sec=Math.floor((Date.now()-new Date(workSession.clock_in).getTime())/1000);
+    const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');
+    el.textContent=`${h}:${m}:${s}`;
+  };
+  tick();workTimerInterval=setInterval(tick,1000);
+}
+async function clockIn(){
+  if(currentRole!=='admin')return;
+  if(workSession){showToast('A work session is already active');return}
+  const clientId=$('timer-client').value,task=$('timer-task').value.trim();
+  if(!clientId){showToast('Select a client first');return}
+  const {data,error}=await sb.from('time_entries').insert({
+    user_id:session.user.id,client_id:clientId,task,clock_in:new Date().toISOString(),hourly_rate:Number(billingSettings?.hourly_rate||3)
+  }).select().single();
+  if(error){showToast(error.message);return}
+  workSession=data;timeEntries.unshift(data);startLiveTimer();renderTimePage();showToast('Work session started');
+}
+async function clockOut(){
+  if(currentRole!=='admin'||!workSession){showToast('No active work session');return}
+  const out=new Date().toISOString(),hrs=hoursBetween(workSession.clock_in,out);
+  const {data,error}=await sb.from('time_entries').update({clock_out:out,hours:hrs}).eq('id',workSession.id).select().single();
+  if(error){showToast(error.message);return}
+  timeEntries=timeEntries.map(x=>x.id===data.id?data:x);workSession=null;startLiveTimer();renderTimePage();renderInvoicesPage();showToast('Work session stopped');
+}
+function renderTimePage(){
+  if(!$('time-entry-list')||currentRole!=='admin')return;
+  const rate=Number(billingSettings?.hourly_rate||3),now=new Date(),today=now.toISOString().slice(0,10),week=startOfWeek(now);
+  const todayH=timeEntries.filter(e=>String(e.clock_in).slice(0,10)===today).reduce((s,e)=>s+timeEntryHours(e),0);
+  const weekH=timeEntries.filter(e=>new Date(e.clock_in)>=week).reduce((s,e)=>s+timeEntryHours(e),0);
+  const uninvoiced=timeEntries.filter(e=>!e.invoice_id&&e.clock_out).reduce((s,e)=>s+timeEntryHours(e)*Number(e.hourly_rate||rate),0);
+  $('time-today').textContent=todayH.toFixed(2)+'h';$('time-week').textContent=weekH.toFixed(2)+'h';$('time-rate').textContent=money(rate);$('time-uninvoiced').textContent=money(uninvoiced);
+  $('timer-status').className='status-chip '+(workSession?'status-ongoing':'status-paused');$('timer-status').textContent=workSession?'● Working now':'● Not working';
+  $('timer-client-label').textContent=workSession?`Working on ${clients.find(c=>c.id===workSession.client_id)?.name||'client'} since ${new Date(workSession.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`:'Select a client before starting work.';
+  $('clock-in').disabled=!!workSession;$('clock-out').disabled=!workSession;
+  $('timer-client').innerHTML='<option value="">Select client…</option>'+clients.map(c=>`<option value="${c.id}" ${workSession?.client_id===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+  $('time-entry-list').innerHTML=timeEntries.length?timeEntries.map(e=>{
+    const c=clients.find(x=>x.id===e.client_id)||{};
+    return `<div class="invoice-row"><div><strong>${esc(c.name||'Client')}</strong><small>${esc(e.task||'General work')}</small></div><div><strong>${esc(new Date(e.clock_in).toLocaleDateString())}</strong><small>${esc(new Date(e.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}${e.clock_out?' → '+esc(new Date(e.clock_out).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})):' → active'}</small></div><div><strong>${timeEntryHours(e).toFixed(2)} hrs</strong><small>${money(e.hourly_rate||rate)}/hr</small></div><div class="invoice-amount">${money(timeEntryHours(e)*Number(e.hourly_rate||rate))}</div><div>${e.invoice_id?'<span class="invoice-status paid">Invoiced</span>':'<span class="invoice-status draft">Uninvoiced</span>'}</div></div>`;
+  }).join(''):'<div class="empty"><strong>No time entries yet</strong>Start a work session to begin tracking hours.</div>';
+}
+async function loadInvoices(){
+  if(!sb||!session)return;
+  const {data,error}=await sb.from('invoices').select('*').order('invoice_date',{ascending:false});
+  if(error){console.warn(error);return}
+  invoices=data||[];
+}
+function selectedInvoiceEntries(){
+  const clientId=$('invoice-client')?.value,start=$('invoice-start')?.value,end=$('invoice-end')?.value;
+  return timeEntries.filter(e=>{
+    if(!e.clock_out||e.invoice_id||e.client_id!==clientId)return false;
+    const d=String(e.clock_in).slice(0,10);
+    return (!start||d>=start)&&(!end||d<=end);
+  });
+}
+function updateInvoicePreviewNumbers(){
+  if(!$('invoice-hours-preview'))return;
+  const entries=selectedInvoiceEntries(),hours=entries.reduce((s,e)=>s+timeEntryHours(e),0),rate=Number($('invoice-rate').value||billingSettings?.hourly_rate||3);
+  $('invoice-hours-preview').textContent=hours.toFixed(2)+' hrs';$('invoice-total-preview').textContent=money(hours*rate);
+}
+function nextInvoiceNumber(){
+  const nums=invoices.map(i=>Number(String(i.invoice_number||'').match(/\d+/)?.[0]||0));return 'INV-'+String(Math.max(1000,...nums)+1).padStart(4,'0');
+}
+function renderInvoicesPage(){
+  if(!$('invoice-list'))return;
+  const visible=currentRole==='admin'?invoices:invoices.filter(i=>clients.some(c=>c.id===i.client_id));
+  const pending=visible.filter(i=>i.status==='pending'),paid=visible.filter(i=>i.status==='paid');
+  $('invoice-pending-count').textContent=pending.length;$('invoice-paid-count').textContent=paid.length;
+  $('invoice-outstanding').textContent=money(pending.reduce((s,i)=>s+Number(i.total||0),0));
+  $('invoice-paid-total').textContent=money(paid.reduce((s,i)=>s+Number(i.total||0),0));
+  if(currentRole==='admin'){
+    $('invoice-client').innerHTML='<option value="">Select client…</option>'+clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    if(!$('invoice-number').value)$('invoice-number').value=nextInvoiceNumber();
+    if(!$('invoice-date').value)$('invoice-date').value=new Date().toISOString().slice(0,10);
+    if(!$('invoice-rate').value)$('invoice-rate').value=Number(billingSettings?.hourly_rate||3).toFixed(2);
+    updateInvoicePreviewNumbers();
+  }
+  $('invoice-list').innerHTML=visible.length?visible.map(i=>{
+    const c=clients.find(x=>x.id===i.client_id)||{};
+    return `<div class="invoice-row"><div><strong>${esc(i.invoice_number)}</strong><small>${esc(c.name||'Client')} · ${esc(i.description||'Online Work')}</small></div><div><strong>${esc(fmtDate(i.invoice_date))}</strong><small>${esc(i.period_start?fmtDate(i.period_start):'')} ${i.period_end?'— '+esc(fmtDate(i.period_end)):''}</small></div><div><strong>${Number(i.hours||0).toFixed(2)} hrs</strong><small>${money(i.hourly_rate)}/hr</small></div><div class="invoice-amount">${money(i.total)}</div><div class="row-actions"><span class="invoice-status ${esc(i.status)}">${esc(i.status==='paid'?'Paid':i.status==='pending'?'Incoming':'Draft')}</span><button class="mini-btn" data-view-invoice="${i.id}">View</button>${currentRole==='admin'&&i.status!=='paid'?`<button class="mini-btn restore" data-mark-paid="${i.id}">Mark Paid</button>`:''}</div></div>`;
+  }).join(''):'<div class="empty"><strong>No invoices yet</strong>Generated invoices will appear here.</div>';
+}
+function buildInvoiceHTML(invoice,client){
+  const b=billingSettings||{},payment=invoice.notes||b.payment_instructions||'';
+  return `<div class="invoice-paper">
+    <div class="invoice-paper-header">
+      <div class="invoice-brand"><h2>${esc(b.business_name||'Webdev VA')}</h2><p><b>${esc(b.full_name||'')}</b></p><p>${esc(b.address||'')}</p><p>${esc(b.phone||'')}</p><p>${esc(b.email||'')}</p></div>
+      <div><h1>INVOICE</h1><div class="invoice-meta"><span>Invoice #</span><strong>${esc(invoice.invoice_number)}</strong><span>Invoice Date</span><strong>${esc(fmtDate(invoice.invoice_date))}</strong><span>Work Period</span><strong>${esc(fmtDate(invoice.period_start))} — ${esc(fmtDate(invoice.period_end))}</strong><span>Status</span><strong>${esc((invoice.status||'pending').toUpperCase())}</strong></div></div>
+    </div>
+    <div class="invoice-client-box"><strong>Bill To</strong><div>${esc(client?.name||'Client')}</div><div>${esc(client?.company||'')}</div><div>${esc(client?.email||'')}</div></div>
+    <table class="invoice-table"><thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody><tr><td>${esc(invoice.description||'Online Work')}</td><td>${Number(invoice.hours||0).toFixed(2)}</td><td>hrs</td><td>${money(invoice.hourly_rate)}</td><td>${money(invoice.total)}</td></tr></tbody></table>
+    <div class="invoice-total-box"><div><span>TOTAL</span><strong>${money(invoice.total)}</strong></div></div>
+    <div class="invoice-payment"><h4>PAYMENT / NOTES</h4><p>${esc(payment||'Thank you for your business.')}</p></div>
+  </div>`;
+}
+function openInvoicePreview(invoice){
+  const client=clients.find(c=>c.id===invoice.client_id);
+  $('invoice-preview-content').innerHTML=buildInvoiceHTML(invoice,client);
+  $('invoice-preview-backdrop').classList.remove('hidden');
+}
+function previewInvoiceDraft(){
+  const entries=selectedInvoiceEntries(),hours=entries.reduce((s,e)=>s+timeEntryHours(e),0),rate=Number($('invoice-rate').value||3),clientId=$('invoice-client').value;
+  openInvoicePreview({invoice_number:$('invoice-number').value||nextInvoiceNumber(),invoice_date:$('invoice-date').value,period_start:$('invoice-start').value,period_end:$('invoice-end').value,hours,hourly_rate:rate,total:hours*rate,description:$('invoice-description').value,notes:$('invoice-notes').value,status:'pending',client_id:clientId});
+}
+async function createInvoice(){
+  if(currentRole!=='admin')return;
+  const entries=selectedInvoiceEntries(),clientId=$('invoice-client').value;
+  if(!clientId){showToast('Select a client');return}
+  if(!entries.length){showToast('No uninvoiced time entries in this period');return}
+  const hours=entries.reduce((s,e)=>s+timeEntryHours(e),0),rate=Number($('invoice-rate').value||billingSettings?.hourly_rate||3),total=hours*rate;
+  const payload={user_id:session.user.id,client_id:clientId,invoice_number:$('invoice-number').value||nextInvoiceNumber(),invoice_date:$('invoice-date').value,period_start:$('invoice-start').value||null,period_end:$('invoice-end').value||null,hours,hourly_rate:rate,total,description:$('invoice-description').value.trim()||'Online Work',notes:$('invoice-notes').value.trim(),status:'pending'};
+  const {data,error}=await sb.from('invoices').insert(payload).select().single();
+  if(error){showToast(error.message);return}
+  await sb.from('time_entries').update({invoice_id:data.id}).in('id',entries.map(e=>e.id));
+  await loadTimeEntries();await loadInvoices();renderInvoicesPage();$('invoice-number').value=nextInvoiceNumber();showToast('Invoice created');
+}
+async function markInvoicePaid(id){
+  if(currentRole!=='admin')return;
+  const {error}=await sb.from('invoices').update({status:'paid',paid_at:new Date().toISOString()}).eq('id',id);
+  if(error){showToast(error.message);return}
+  await loadInvoices();renderInvoicesPage();showToast('Invoice marked paid');
+}
+
+document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   $(`${view}-view`)?.classList.add('active');
-  const titles={dashboard:'Dashboard',clients:'Client Directory',projects:'Project Monitoring',trash:'Trash','client-detail':currentRole==='admin'?'Client Details':'My Project Portal'};
+  const titles={dashboard:'Dashboard',clients:'Client Directory',projects:'Project Monitoring',time:'Time Log',invoices:'Invoices',settings:'Rate & Billing',trash:'Trash','client-detail':currentRole==='admin'?'Client Details':'My Project Portal'};
   els.pageTitle.textContent=titles[view]||'LimeCRM';
   if(view==='clients')renderClients();
   if(view==='projects')renderProjectBoard();
   if(view==='trash')renderTrash();
+  if(view==='time')renderTimePage();
+  if(view==='invoices')renderInvoicesPage();
+  if(view==='settings')renderBillingSettings();
   if(view==='dashboard')updateDashboard();
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -597,6 +791,20 @@ $('create-account')?.addEventListener('click',async()=>{
 });
 $('toggle-password')?.addEventListener('click',()=>{const i=$('login-password'),show=i.type==='password';i.type=show?'text':'password';$('toggle-password').textContent=show?'Hide':'Show'});
 $('sign-out')?.addEventListener('click',()=>sb?.auth.signOut());
+
+
+$('save-billing-settings')?.addEventListener('click',saveBillingSettings);
+$('clock-in')?.addEventListener('click',clockIn);
+$('clock-out')?.addEventListener('click',clockOut);
+['invoice-client','invoice-start','invoice-end','invoice-rate'].forEach(id=>$(id)?.addEventListener('input',updateInvoicePreviewNumbers));
+$('preview-invoice')?.addEventListener('click',previewInvoiceDraft);
+$('create-invoice')?.addEventListener('click',createInvoice);
+$('invoice-preview-close')?.addEventListener('click',()=>$('invoice-preview-backdrop').classList.add('hidden'));
+$('invoice-preview-backdrop')?.addEventListener('click',e=>{if(e.target===$('invoice-preview-backdrop'))$('invoice-preview-backdrop').classList.add('hidden')});
+document.addEventListener('click',async e=>{
+  const vi=e.target.closest('[data-view-invoice]');if(vi){const inv=invoices.find(x=>x.id===vi.dataset.viewInvoice);if(inv)openInvoicePreview(inv)}
+  const mp=e.target.closest('[data-mark-paid]');if(mp)await markInvoicePaid(mp.dataset.markPaid);
+});
 
 initializeAuth().catch(e=>{
   console.error(e);lockUI(true);$('login-error').textContent=e.message||'Could not initialize CRM.';
