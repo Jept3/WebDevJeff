@@ -1,750 +1,111 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#0b0f0d" />
-  <meta name="application-name" content="Jeffdesign101" />
-  <title>Jeffdesign101 — Client & Project Portal</title>
-  <link rel="stylesheet" href="styles.css?v=20260903b" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090d0a">
+  <title>Jeffdesign101 — VA Workspace</title>
+  <link rel="stylesheet" href="styles.css?v=clean-v1">
 </head>
-<body>
-
-  <div id="login-screen" class="login-screen">
-    <div class="login-card glass">
+<body class="booting">
+  <section id="loginScreen" class="login-screen">
+    <form id="loginForm" class="login-card glass" autocomplete="on">
       <div class="login-brand">
-        <div class="brand-mark brand-logo"><img src="assets/jeffdesign101-logo.png" alt="Jeffdesign101 logo"></div>
-        <div>
-          <p class="eyebrow">SECURE ADMIN</p>
-          <h1>Jeffdesign101 Login</h1>
-        </div>
+        <img src="assets/jeffdesign101-logo.png" alt="Jeffdesign101">
+        <div><span>SECURE WORKSPACE</span><h1>Jeffdesign101 Login</h1></div>
       </div>
-      <p class="login-copy">Sign in to access client records, files, project status and dashboard information.</p>
-      <form id="login-form">
-        <label>
-          <span>Username or email</span>
-          <input id="login-username" autocomplete="username" required placeholder="username or email" />
-        </label>
-        <label class="login-password-field">
-          <span>Password</span>
-          <div class="password-wrap">
-            <input id="login-password" type="password" autocomplete="current-password" required placeholder="Enter password" />
-            <button id="toggle-password" type="button" class="password-toggle">Show</button>
-          </div>
-        </label>
-        <div id="login-error" class="login-error"></div>
-        <button id="login-submit" type="submit" class="btn btn-primary login-submit">Login</button>
-        <button type="button" id="create-account" class="btn btn-ghost login-submit hidden">Create client account</button>
-      </form>
-      <small class="login-note">Secure Jeffdesign101 employer access. Use the username and password provided by your VA.</small>
-    </div>
-  </div>
+      <p class="muted">Admin can sign in with email. Employers can sign in with the username and password provided by the VA.</p>
+      <label><span>Username or email</span><input id="loginIdentifier" autocomplete="username" required></label>
+      <label><span>Password</span><div class="password-row"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" id="toggleLoginPassword" class="mini-btn">Show</button></div></label>
+      <div id="loginError" class="form-error"></div>
+      <button id="loginSubmit" class="btn primary full" type="submit">Login</button>
+    </form>
+  </section>
 
-  <div class="noise"></div>
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-
-  <div class="app-shell">
-    <aside class="sidebar glass">
-      <div class="brand">
-        <div class="brand-mark brand-logo"><img src="assets/jeffdesign101-logo.png" alt="Jeffdesign101 logo"></div>
-        <div>
-          <h1>Jeffdesign101</h1>
-          <p>Design · Purpose · Impact</p>
-        </div>
-      </div>
-
-      <nav class="nav">
-        <button class="nav-link active" data-view="dashboard">
-          <span>◫</span><span>Dashboard</span>
-        </button>
-        <button class="nav-link" data-view="clients">
-          <span>◎</span><span>Clients</span>
-        </button>
-        <button class="nav-link" data-view="projects">
-          <span>◇</span><span>Projects</span>
-        </button>
-        <button class="nav-link" data-view="task-inbox">
-          <span>☷</span><span>Task Inbox</span><span id="task-inbox-badge" class="nav-badge hidden">0</span>
-        </button>
-        <button class="nav-link" data-view="time">
-          <span>◷</span><span>Time Log</span>
-        </button>
-        <button class="nav-link" data-view="invoices">
-          <span>▤</span><span>Invoices</span>
-        </button>
-        <button class="nav-link" data-view="settings">
-          <span>⚙</span><span>Rate & Billing</span>
-        </button>
-        <button class="nav-link" data-view="trash">
-          <span>♲</span><span>Trash</span>
-        </button>
+  <div id="app" class="app hidden">
+    <aside id="adminSidebar" class="sidebar">
+      <div class="brand"><img src="assets/jeffdesign101-logo.png"><div><strong>Jeffdesign101</strong><small>Design · Purpose · Impact</small></div></div>
+      <nav>
+        <button data-admin-view="dashboard" class="nav-btn active">▦ <span>Dashboard</span></button>
+        <button data-admin-view="clients" class="nav-btn">◎ <span>Employers</span></button>
+        <button data-admin-view="tasks" class="nav-btn">☷ <span>Task Inbox</span><b id="taskBadge" class="badge hidden">0</b></button>
+        <button data-admin-view="time" class="nav-btn">◷ <span>Time Log</span></button>
+        <button data-admin-view="invoices" class="nav-btn">▤ <span>Invoices</span></button>
+        <button data-admin-view="billing" class="nav-btn">⚙ <span>Rate & Billing</span></button>
+        <button data-admin-view="trash" class="nav-btn">♲ <span>Trash</span></button>
       </nav>
-
-      <div class="sidebar-card">
-        <div class="pulse-dot"></div>
-        <div>
-          <strong>Cloud autosave enabled</strong>
-          <small>Saved securely to Supabase</small>
-        </div>
-      </div>
+      <div class="cloud-note"><i></i><div><strong>Cloud connected</strong><small>Saved to Supabase</small></div></div>
     </aside>
 
     <main class="main">
       <header class="topbar glass">
-        <div>
-          <p class="eyebrow">ADMIN WORKSPACE</p>
-          <h2 id="page-title">Dashboard</h2>
-        </div>
-        <div class="top-actions">
-          <div class="global-search">
-            <span>⌕</span>
-            <input id="global-search" type="search" placeholder="Search clients, sites, notes…" />
-          </div>
-          <button id="add-client-top" class="btn btn-primary">＋ Add Client</button>
-          <span id="role-badge" class="role-badge">...</span><button id="sign-out" class="btn btn-ghost">Sign out</button>
-        </div>
+        <div><small id="workspaceLabel">WORKSPACE</small><h2 id="pageTitle">Dashboard</h2></div>
+        <div class="top-actions"><span id="roleBadge" class="role-badge">ADMIN</span><button id="signOutBtn" class="btn ghost">Sign out</button></div>
       </header>
 
-      <section id="dashboard-view" class="view">
-        <div class="hero glass brand-cover">
-          <div class="brand-cover-overlay"></div>
-          <div class="hero-content">
-            <span class="status-chip status-ongoing">● Jeffdesign101 Workspace</span>
-            <h3>Design. Purpose. <span>Impact.</span></h3>
-            <p>Client projects, tasks, progress, time tracking and invoices — managed in one focused workspace.</p>
-          </div>
-          <button id="add-client-hero" class="btn btn-primary large">＋ New Client</button>
-        </div>
+      <div id="employerTabs" class="employer-tabs glass hidden">
+        <button data-employer-view="overview" class="active">Overview</button>
+        <button data-employer-view="tasks">Tasks</button>
+        <button data-employer-view="files">Files</button>
+        <button data-employer-view="work">Work Monitor</button>
+        <button data-employer-view="invoices">Invoices</button>
+        <button data-employer-view="account">Account</button>
+      </div>
 
-        <div class="stats-grid">
-          <article class="stat-card glass">
-            <p>Total clients</p>
-            <div class="stat-number" id="stat-clients">0</div>
-            <small>All saved records</small>
-          </article>
-          <article class="stat-card glass">
-            <p>Ongoing</p>
-            <div class="stat-number" id="stat-ongoing">0</div>
-            <small>Currently active</small>
-          </article>
-          <article class="stat-card glass">
-            <p>Completed</p>
-            <div class="stat-number" id="stat-completed">0</div>
-            <small>Delivered projects</small>
-          </article>
-          <article class="stat-card glass">
-            <p>Avg. completion</p>
-            <div class="stat-number" id="stat-duration">—</div>
-            <small>From start to finish</small>
-          </article>
-        </div>
-
-        <div class="dashboard-grid">
-          <article class="panel glass">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">PROJECT HEALTH</p>
-                <h3>Work status</h3>
-              </div>
-            </div>
-            <div class="donut-wrap">
-              <canvas id="status-donut" width="260" height="260"></canvas>
-              <div class="donut-center">
-                <strong id="donut-total">0</strong>
-                <span>projects</span>
-              </div>
-            </div>
-            <div id="donut-legend" class="legend"></div>
-          </article>
-
-          <article class="panel glass">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">ACTIVITY</p>
-                <h3>Projects by month</h3>
-              </div>
-            </div>
-            <div class="chart-area">
-              <canvas id="monthly-chart" width="700" height="330"></canvas>
-            </div>
-          </article>
-        </div>
-
-        <article class="panel glass">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">RECENT</p>
-              <h3>Recent clients</h3>
-            </div>
-            <button class="btn btn-ghost" data-view-jump="clients">View all →</button>
-          </div>
-          <div id="recent-clients" class="recent-list"></div>
-        </article>
-      </section>
-
-      <section id="clients-view" class="view">
-        <article class="panel glass">
-          <div class="directory-toolbar">
-            <div class="search-box">
-              <span>⌕</span>
-              <input id="client-search" type="search" placeholder="Search client name, website, email or tag…" />
-            </div>
-
-            <div class="toolbar-actions">
-              <select id="client-status-filter" class="select">
-                <option value="all">All statuses</option>
-                <option value="ongoing">Ongoing</option>
-                <option value="review">In Review</option>
-                <option value="waiting">Waiting</option>
-                <option value="complete">Complete</option>
-                <option value="paused">Paused</option>
-              </select>
-              <select id="client-sort" class="select">
-                <option value="updated-desc">Last updated</option>
-                <option value="name-asc">Name A–Z</option>
-                <option value="name-desc">Name Z–A</option>
-                <option value="created-desc">Newest first</option>
-                <option value="created-asc">Oldest first</option>
-                <option value="deadline-asc">Deadline soonest</option>
-              </select>
-              <button id="add-client" class="btn btn-primary">＋ Add Client</button>
-            </div>
-          </div>
-          <div id="client-list" class="client-list"></div>
-        </article>
-      </section>
-
-      <section id="projects-view" class="view">
-        <article class="panel glass">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">ALL PROJECTS</p>
-              <h3>Project monitoring</h3>
-            </div>
-          </div>
-          <div id="project-board" class="project-board"></div>
-        </article>
-      </section>
-
-
-
-
-      <section id="task-inbox-view" class="view">
-        <div class="page-intro glass">
-          <div>
-            <p class="eyebrow">EMPLOYER REQUESTS</p>
-            <h2>Task Inbox</h2>
-            <p>New tasks submitted by employers. Open a task to review it, then mark it complete when finished.</p>
-          </div>
-          <div class="page-intro-actions">
-            <select id="task-inbox-filter">
-              <option value="all">All tasks</option>
-              <option value="unread">Unread</option>
-              <option value="open">Open</option>
-              <option value="done">Completed</option>
-            </select>
-          </div>
-        </div>
-        <div id="task-inbox-list" class="task-inbox-list"></div>
-      </section>
-
-      <section id="time-view" class="view">
-        <div class="stats-grid">
-          <article class="stat-card glass"><p>Today</p><div class="stat-number" id="time-today">0.00h</div><small>Tracked work time</small></article>
-          <article class="stat-card glass"><p>This week</p><div class="stat-number" id="time-week">0.00h</div><small>Billable hours</small></article>
-          <article class="stat-card glass"><p>Current rate</p><div class="stat-number" id="time-rate">$3.00</div><small>Per hour</small></article>
-          <article class="stat-card glass"><p>Uninvoiced</p><div class="stat-number" id="time-uninvoiced">$0.00</div><small>Ready to invoice</small></article>
-        </div>
-
-        <article class="panel glass">
-          <div class="panel-head">
-            <div><p class="eyebrow">WORK TIMER</p><h3>Login / Logout Work Session</h3></div>
-            <span id="timer-status" class="status-chip status-paused">● Not working</span>
-          </div>
-          <div class="timer-card">
-            <div>
-              <div class="timer-display" id="live-timer">00:00:00</div>
-              <div class="muted" id="timer-client-label">Select a client before starting work.</div>
-            </div>
-            <div class="timer-controls">
-              <select id="timer-client" class="select"></select>
-              <input id="timer-task" class="timer-input" placeholder="What are you working on?" />
-              <button id="clock-in" class="btn btn-primary">▶ Login / Start</button>
-              <button id="clock-out" class="btn btn-danger">■ Logout / Stop</button>
-            </div>
-          </div>
-        </article>
-
-        <article class="panel glass">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">MANUAL ENTRY</p>
-              <h3>Add Hours Worked</h3>
-            </div>
-            <span class="muted">For work you forgot to track with the timer</span>
-          </div>
-
-          <div class="manual-hours-grid">
-            <label>
-              <span>Client</span>
-              <select id="manual-client"></select>
-            </label>
-            <label>
-              <span>Work date</span>
-              <input id="manual-date" type="date" />
-            </label>
-            <label>
-              <span>Hours worked</span>
-              <input id="manual-hours" type="number" min="0.01" step="0.25" placeholder="e.g. 7" />
-            </label>
-            <label>
-              <span>Hourly rate</span>
-              <input id="manual-rate" type="number" min="0" step="0.01" />
-            </label>
-          </div>
-
-          <label class="full">
-            <span>Task / work description</span>
-            <input id="manual-task" placeholder="e.g. Website updates, content, mobile testing..." />
-          </label>
-
-          <div class="manual-hours-footer">
-            <div class="manual-total">
-              <span>Calculated amount</span>
-              <strong id="manual-amount">$0.00</strong>
-            </div>
-            <button id="add-manual-hours" class="btn btn-primary">＋ Add Hours</button>
-          </div>
-        </article>
-
-        <article class="panel glass">
-          <div class="panel-head">
-            <div><p class="eyebrow">ACTIVE SESSIONS</p><h3>Client timers</h3></div>
-            <span class="muted">You can track separate active sessions for different clients.</span>
-          </div>
-          <div id="active-session-list" class="active-session-list"></div>
-        </article>
-
-        <article class="panel glass">
-          <div class="panel-head">
-            <div><p class="eyebrow">WORK HISTORY</p><h3>Time entries</h3></div>
-          </div>
-          <div id="time-entry-list" class="invoice-list"></div>
-        </article>
-      </section>
-
-      <section id="invoices-view" class="view">
-        <div class="stats-grid">
-          <article class="stat-card glass"><p>Incoming</p><div class="stat-number" id="invoice-pending-count">0</div><small>Awaiting payment</small></article>
-          <article class="stat-card glass"><p>Paid</p><div class="stat-number" id="invoice-paid-count">0</div><small>Completed invoices</small></article>
-          <article class="stat-card glass"><p>Outstanding</p><div class="stat-number" id="invoice-outstanding">$0.00</div><small>Amount due</small></article>
-          <article class="stat-card glass"><p>Total paid</p><div class="stat-number" id="invoice-paid-total">$0.00</div><small>Recorded payments</small></article>
-        </div>
-
-        <article class="panel glass admin-only-block">
-          <div class="panel-head">
-            <div><p class="eyebrow">CREATE BILL</p><h3>Generate Invoice</h3></div>
-          </div>
-          <div class="invoice-builder">
-            <div class="form-grid">
-              <label><span>Client</span><select id="invoice-client"></select></label>
-              <label><span>Invoice number</span><input id="invoice-number" placeholder="INV-1001" /></label>
-              <label><span>Invoice date</span><input id="invoice-date" type="date" /></label>
-              <label><span>Work period start</span><input id="invoice-start" type="date" /></label>
-              <label><span>Work period end</span><input id="invoice-end" type="date" /></label>
-              <label><span>Hourly rate</span><input id="invoice-rate" type="number" min="0" step="0.01" /></label>
-              <label>
-                <span>Hours source</span>
-                <select id="invoice-hours-mode">
-                  <option value="time-log">Use Time Log</option>
-                  <option value="manual">Enter Hours Manually</option>
-                </select>
-              </label>
-              <label id="invoice-manual-hours-wrap" class="hidden">
-                <span>Manual hours</span>
-                <input id="invoice-manual-hours" type="number" min="0.01" step="0.25" placeholder="e.g. 7" />
-              </label>
-            </div>
-            <div id="invoice-hours-help" class="invoice-hours-help">
-              Time Log mode automatically totals uninvoiced work entries in the selected period.
-            </div>
-            <label class="full"><span>Description</span><input id="invoice-description" value="Online Work" /></label>
-            <label class="full"><span>Notes / payment instructions</span><textarea id="invoice-notes" rows="3" placeholder="Payment instructions, reference, notes..."></textarea></label>
-            <div class="invoice-live-total">
-              <div><span>Billable hours</span><strong id="invoice-hours-preview">0.00 hrs</strong></div>
-              <div><span>Total</span><strong id="invoice-total-preview">$0.00</strong></div>
-            </div>
-            <div class="modal-actions">
-              <div></div>
-              <div class="right-actions">
-                <button id="preview-invoice" class="btn btn-ghost">Preview</button>
-                <button id="create-invoice" class="btn btn-primary">Create Invoice</button>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article class="panel glass">
-          <div class="panel-head">
-            <div><p class="eyebrow">BILLING HISTORY</p><h3>Incoming & Paid Invoices</h3></div>
-          </div>
-          <div id="invoice-list" class="invoice-list"></div>
-        </article>
-      </section>
-
-      <section id="settings-view" class="view">
-        <article class="panel glass">
-          <div class="panel-head">
-            <div><p class="eyebrow">BILLING SETTINGS</p><h3>Hourly Rate & Payment Details</h3></div>
-          </div>
-          <div class="form-grid">
-            <label><span>Default hourly rate (USD)</span><input id="default-hourly-rate" type="number" min="0" step="0.01" value="3.00" /></label>
-            <label><span>Business / VA name</span><input id="billing-business-name" placeholder="Webdev VA" /></label>
-            <label><span>Your full name</span><input id="billing-name" placeholder="Your name" /></label>
-            <label><span>Email</span><input id="billing-email" type="email" /></label>
-            <label><span>Phone</span><input id="billing-phone" /></label>
-            <label><span>Address</span><input id="billing-address" /></label>
-          </div>
-          <label class="full"><span>Payment instructions</span><textarea id="billing-payment" rows="4" placeholder="Example: Please send payment through Wise..."></textarea></label>
-          <div class="modal-actions"><div></div><button id="save-billing-settings" class="btn btn-primary">Save Billing Settings</button></div>
-        </article>
-      </section>
-
-      <section id="trash-view" class="view">
-        <article class="panel glass">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">RECYCLE BIN</p>
-              <h3>Deleted clients</h3>
-            </div>
-            <button id="empty-trash" class="btn btn-danger">Empty Trash</button>
-          </div>
-          <p class="muted" style="margin-top:-8px;margin-bottom:18px">Deleted clients stay here until you restore them or permanently remove them.</p>
-          <div id="trash-list" class="client-list"></div>
-        </article>
-      </section>
-
-
-      <section id="client-home-view" class="view client-portal-view">
-        <div class="client-portal-header glass">
-          <div>
-            <p class="eyebrow">EMPLOYER PORTAL</p>
-            <h2 id="portal-client-name">My Project</h2>
-            <p id="portal-client-subtitle">Jeffdesign101 project workspace</p>
-          </div>
-          <div id="portal-project-status"></div>
-        </div>
-
-        <div class="client-portal-nav glass">
-          <button class="client-tab active" data-client-view="client-home">Overview</button>
-          <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-files">Files</button>
-          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
-          <button class="client-tab" data-client-view="client-invoices">Invoices</button>
-          <button class="client-tab" data-client-view="client-account">Account</button>
-        </div>
-
-        <div id="client-home-content"></div>
-      </section>
-
-      <section id="client-tasks-view" class="view client-portal-view">
-        <div class="client-portal-nav glass">
-          <button class="client-tab" data-client-view="client-home">Overview</button>
-          <button class="client-tab active" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-files">Files</button>
-          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
-          <button class="client-tab" data-client-view="client-invoices">Invoices</button>
-          <button class="client-tab" data-client-view="client-account">Account</button>
-        </div>
-        <div id="client-tasks-content"></div>
-      </section>
-<section id="client-files-view" class="view client-portal-view">
-        <div class="client-portal-nav glass">
-          <button class="client-tab" data-client-view="client-home">Overview</button>
-          <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab active" data-client-view="client-files">Files</button>
-          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
-          <button class="client-tab" data-client-view="client-invoices">Invoices</button>
-          <button class="client-tab" data-client-view="client-account">Account</button>
-        </div>
-        <div id="client-files-content"></div>
-      </section>
-
-
-      <section id="client-work-view" class="view client-portal-view">
-        <div class="client-portal-nav glass">
-          <button class="client-tab" data-client-view="client-home">Overview</button>
-          <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-files">Files</button>
-          <button class="client-tab active" data-client-view="client-work">Work Monitor</button>
-          <button class="client-tab" data-client-view="client-invoices">Invoices</button>
-          <button class="client-tab" data-client-view="client-account">Account</button>
-        </div>
-        <div id="client-work-content"></div>
-      </section>
-
-      <section id="client-invoices-view" class="view client-portal-view">
-        <div class="client-portal-nav glass">
-          <button class="client-tab" data-client-view="client-home">Overview</button>
-          <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-files">Files</button>
-          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
-          <button class="client-tab active" data-client-view="client-invoices">Invoices</button>
-          <button class="client-tab" data-client-view="client-account">Account</button>
-        </div>
-        <div id="client-invoices-content"></div>
-      </section>
-
-      <section id="client-account-view" class="view client-portal-view">
-        <div class="client-portal-nav glass">
-          <button class="client-tab" data-client-view="client-home">Overview</button>
-          <button class="client-tab" data-client-view="client-tasks">Tasks</button>
-          <button class="client-tab" data-client-view="client-files">Files</button>
-          <button class="client-tab" data-client-view="client-work">Work Monitor</button>
-          <button class="client-tab" data-client-view="client-invoices">Invoices</button>
-          <button class="client-tab active" data-client-view="client-account">Account</button>
-        </div>
-        <div id="client-account-content"></div>
-      </section>
-
-      <section id="client-detail-view" class="view">
-        <div class="detail-toolbar">
-          <button id="detail-back" class="btn btn-ghost">← Back</button>
-          <div class="detail-search search-box">
-            <span>⌕</span>
-            <input id="detail-search" type="search" placeholder="Search this client page…" />
-          </div>
-          <button id="edit-client-detail" class="btn btn-primary">Edit</button>
-        </div>
-
-        <div id="client-detail"></div>
-      </section>
+      <section id="view" class="view"></section>
     </main>
   </div>
 
-  <div id="modal-backdrop" class="modal-backdrop hidden">
-    <div class="modal glass">
-      <div class="modal-head">
-        <div>
-          <p class="eyebrow">EMPLOYER RECORD</p>
-          <h3 id="modal-title">Add client</h3>
-        </div>
-        <button id="modal-close" class="icon-btn">×</button>
+  <div id="clientModal" class="modal-backdrop hidden">
+    <form id="clientForm" class="modal glass">
+      <div class="modal-head"><div><small>EMPLOYER RECORD</small><h3 id="clientModalTitle">Add Employer</h3></div><button type="button" data-close="clientModal" class="icon-btn">×</button></div>
+      <input id="clientId" type="hidden">
+      <div class="form-grid">
+        <label><span>Name *</span><input id="clientName" required></label>
+        <label><span>Company</span><input id="clientCompany"></label>
+        <label><span>Contact email (optional)</span><input id="clientEmail" type="email"></label>
+        <label><span>Phone</span><input id="clientPhone"></label>
+        <label><span>Website</span><input id="clientWebsite"></label>
+        <label><span>Project type</span><input id="clientProjectType" placeholder="Website build"></label>
+        <label><span>Status</span><select id="clientStatus"><option value="ongoing">Active</option><option value="paused">Paused</option><option value="complete">Complete</option></select></label>
+        <label><span>Priority</span><select id="clientPriority"><option>Normal</option><option>High</option><option>Urgent</option><option>Low</option></select></label>
+        <label><span>Start date</span><input id="clientStartDate" type="date"></label>
+        <label><span>Deadline</span><input id="clientDeadline" type="date"></label>
+        <label><span>Portal permission</span><select id="clientPermission"><option value="edit">Can Edit</option><option value="view">View Only</option></select></label>
       </div>
+      <label><span>Admin project overview</span><textarea id="clientOverview" rows="4"></textarea></label>
 
-      <form id="client-form">
-        <input type="hidden" id="client-id" />
-
+      <div class="credential-box">
+        <div><small>EMPLOYER LOGIN</small><h4>Username & temporary password</h4><p>Password is never stored as plain text.</p></div>
         <div class="form-grid">
-          <label>
-            <span>Client name *</span>
-            <input id="client-name" required placeholder="e.g. Nova Dental Studio" />
-          </label>
-          <label>
-            <span>Company / brand</span>
-            <input id="client-company" placeholder="e.g. Nova Dental" />
-          </label>
-          <label>
-            <span>Contact email (optional)</span>
-            <input id="client-email" type="email" placeholder="Optional — not required for login" />
-          </label>
-          <label>
-            <span>Phone</span>
-            <input id="client-phone" placeholder="+1 555 000 0000" />
-          </label>
-          <label>
-            <span>Website / domain</span>
-            <input id="client-website" placeholder="https://example.com" />
-          </label>
-          <label>
-            <span>Project type</span>
-            <input id="client-project-type" placeholder="Business website, eCommerce…" />
-          </label>
-          <label>
-            <span>Status</span>
-            <select id="client-status">
-              <option value="ongoing">Ongoing</option>
-              <option value="review">In Review</option>
-              <option value="waiting">Waiting</option>
-              <option value="complete">Complete</option>
-              <option value="paused">Paused</option>
-            </select>
-          </label>
-          <label>
-            <span>Priority</span>
-            <select id="client-priority">
-              <option>Normal</option>
-              <option>High</option>
-              <option>Urgent</option>
-              <option>Low</option>
-            </select>
-          </label>
-          <label>
-            <span>Start date</span>
-            <input id="client-start" type="date" />
-          </label>
-          <label>
-            <span>Deadline</span>
-            <input id="client-deadline" type="date" />
-          </label>
-          <label>
-            <span>Completed date</span>
-            <input id="client-completed" type="date" />
-          </label>
-          <label>
-            <span>Budget</span>
-            <input id="client-budget" placeholder="$2,500" />
-          </label>
+          <label><span>Username</span><input id="clientUsername" autocomplete="off"></label>
+          <label><span>Temporary password</span><div class="password-row"><input id="clientTempPassword" type="password" autocomplete="new-password"><button type="button" id="toggleTempPassword" class="mini-btn">Show</button></div></label>
         </div>
-
-        <label class="full">
-          <span>Website project overview</span>
-          <textarea id="client-overview" rows="4" placeholder="What the website is for, target audience, main goals, current stage…"></textarea>
-        </label>
-
-        <div class="form-grid">
-          <label>
-            <span>Hosting</span>
-            <input id="client-hosting" placeholder="Vercel, GitHub Pages, Hostinger…" />
-          </label>
-          <label>
-            <span>CMS / stack</span>
-            <input id="client-stack" placeholder="WordPress, React, HTML/CSS…" />
-          </label>
-          <label>
-            <span>Domain registrar</span>
-            <input id="client-registrar" placeholder="GoDaddy, Namecheap…" />
-          </label>
-          <label>
-            <span>Primary contact</span>
-            <input id="client-contact" placeholder="Name / role" />
-          </label>
-          <label>
-            <span>Client username</span>
-            <input id="client-username" placeholder="e.g. novadental" />
-          </label>
-          <label>
-            <span>Portal permission</span>
-            <select id="client-permission">
-              <option value="edit">Can Edit</option>
-              <option value="view">View Only</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="full credential-panel">
-          <div>
-            <span class="credential-title">Employer Login Credentials</span>
-            <small>Create or reset the client login. Password is sent securely to the server function and is never stored in the CRM database.</small>
-          </div>
-          <div class="credential-actions credential-actions-v2">
-            <div class="credential-password-wrap">
-              <input id="client-temp-password" type="password" autocomplete="new-password" placeholder="Temporary password (8+ characters)" />
-              <button type="button" id="toggle-client-temp-password" class="password-toggle credential-show-btn">Show</button>
-            </div>
-            <button type="button" id="create-client-login" class="btn btn-primary">Save Client + Create / Reset Login</button>
-          </div>
-          <div class="credential-help">Username/password changes are not autosaved. Click the button above when you are ready. The password is never stored as plain text.</div>
-          <div id="credential-result" class="save-state credential-result"></div>
-        </div>
-
-        <label class="full">
-          <span>Deliverables</span>
-          <textarea id="client-deliverables" rows="3" placeholder="Home, About, Services, Contact, SEO setup…"></textarea>
-        </label>
-
-        <label class="full">
-          <span>Notes / next steps</span>
-          <textarea id="client-notes" rows="4" placeholder="Feedback, credentials reminder, next action, design notes…"></textarea>
-        </label>
-
-        <label class="full">
-          <span>Information from client</span>
-          <textarea id="client-submitted-info" rows="4" placeholder="Paste or type information supplied by the client. This field autosaves while editing an existing record."></textarea>
-        </label>
-
-        <div class="full upload-panel">
-          <div class="upload-head">
-            <div>
-              <span>Client files & attachments</span>
-              <small>PDF, Word, Excel, images, ZIP and other files</small>
-            </div>
-            <label class="btn btn-ghost upload-btn">
-              ＋ Upload Files
-              <input id="client-files" type="file" multiple hidden />
-            </label>
-          </div>
-          <div id="file-list" class="file-list"></div>
-        </div>
-
-        <label class="full">
-          <span>Tags</span>
-          <input id="client-tags" placeholder="design, seo, ecommerce (comma separated)" />
-        </label>
-
-        <div class="modal-actions">
-          <div>
-            <button type="button" id="delete-client" class="btn btn-danger hidden">Delete</button>
-          </div>
-          <div class="right-actions">
-            <span id="save-state" class="save-state">Autosave ready</span>
-            <button type="button" id="cancel-client" class="btn btn-ghost">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save Client</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-
-
-  <div id="task-detail-backdrop" class="modal-backdrop hidden">
-    <div class="modal glass task-detail-modal">
-      <div class="modal-head">
-        <div>
-          <p class="eyebrow">EMPLOYER TASK</p>
-          <h3 id="task-detail-title">Task details</h3>
-        </div>
-        <button id="task-detail-close" class="icon-btn">×</button>
+        <div id="credentialStatus" class="save-state"></div>
+        <button type="button" id="createLoginBtn" class="btn ghost">Create / Reset Employer Login</button>
       </div>
-      <div id="task-detail-content"></div>
-    </div>
+
+      <div class="modal-actions"><button type="button" data-close="clientModal" class="btn ghost">Cancel</button><button class="btn primary" type="submit">Save Employer</button></div>
+    </form>
   </div>
 
-  <div id="invoice-preview-backdrop" class="modal-backdrop hidden">
-    <div class="modal glass invoice-preview-modal">
-      <div class="modal-head">
-        <div><p class="eyebrow">INVOICE PREVIEW</p><h3>Professional Invoice</h3></div>
-        <button id="invoice-preview-close" class="icon-btn">×</button>
-      </div>
-      <div id="invoice-preview-content"></div>
+  <div id="taskModal" class="modal-backdrop hidden"><div class="modal glass"><div class="modal-head"><div><small>EMPLOYER TASK</small><h3 id="taskModalTitle">Task</h3></div><button data-close="taskModal" class="icon-btn">×</button></div><div id="taskModalBody"></div></div></div>
+
+  <div id="invoiceModal" class="modal-backdrop hidden"><div class="modal invoice-modal"><div class="modal-head dark-head"><div><small>INVOICE PREVIEW</small><h3>Professional Invoice</h3></div><button data-close="invoiceModal" class="icon-btn">×</button></div><div id="invoiceModalBody"></div></div></div>
+
+  <div id="statusDock" class="status-dock hidden">
+    <button id="statusPill" class="status-pill"><i id="statusDot"></i><span id="statusLabel">VA Offline</span><small id="statusMiniTime">—</small></button>
+    <div id="statusPopover" class="status-popover hidden">
+      <div class="popover-head"><div><strong id="statusFullLabel">VA Offline</strong><small id="statusFullTime">Not clocked in</small></div><button id="hideStatusBtn" class="icon-btn">×</button></div>
+      <button id="openWorkMonitorBtn" class="btn primary full">Open Work Monitor</button>
     </div>
   </div>
-
-
-  <div id="employer-status-dock" class="employer-status-dock hidden">
-    <button id="employer-status-pill" class="employer-status-pill" type="button">
-      <span id="employer-floating-dot" class="work-status-dot"></span>
-      <span id="employer-floating-label">VA Offline</span>
-      <span id="employer-floating-mini-time">00:00</span>
-    </button>
-
-    <div id="employer-status-popover" class="employer-status-popover hidden">
-      <div class="status-popover-head">
-        <div>
-          <strong id="employer-status-popover-label">VA Offline</strong>
-          <small id="employer-floating-time">Not currently clocked in</small>
-        </div>
-        <button id="employer-status-popover-close" class="icon-btn">×</button>
-      </div>
-      <button id="employer-floating-open" class="btn btn-primary">Open Work Monitor</button>
-    </div>
-  </div>
+  <button id="restoreStatusBtn" class="restore-status hidden">VA Status</button>
 
   <div id="toast" class="toast"></div>
-  <script src="config.js?v=20260903stable"></script>
+
+  <script src="config.js?v=clean-v1"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=session-invoice-status-fix-20260903"></script>
+  <script src="app.js?v=clean-v1"></script>
 </body>
 </html>
