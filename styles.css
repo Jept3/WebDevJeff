@@ -966,3 +966,75 @@ body.auth-loading #login-screen .login-card{
   .task-inbox-card{grid-template-columns:1fr}
   .task-card-actions{grid-column:auto}
 }
+
+
+/* Compact task previews */
+.compact-task-body{
+  max-height:88px;
+  overflow:hidden;
+  position:relative;
+}
+.compact-task-body.expanded{max-height:none}
+.compact-task-body:not(.expanded)::after{
+  content:"";
+  position:absolute;
+  left:0;right:0;bottom:0;height:34px;
+  background:linear-gradient(transparent,rgba(17,24,20,.98));
+}
+.compact-toggle{
+  border:0;background:transparent;color:var(--lime);
+  font-size:11px;font-weight:850;padding:7px 0 0;
+}
+
+/* Employer floating work status */
+.employer-floating-status{
+  position:fixed;
+  right:22px;
+  bottom:22px;
+  z-index:900;
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  gap:10px;
+  align-items:center;
+  min-width:250px;
+  padding:11px 12px;
+  border-radius:16px;
+  border:1px solid rgba(186,255,58,.16);
+  background:rgba(11,17,13,.92);
+  backdrop-filter:blur(16px);
+  box-shadow:0 18px 50px rgba(0,0,0,.35);
+}
+.employer-floating-status strong{display:block;font-size:11px}
+.employer-floating-status small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.employer-floating-status .work-status-dot{width:10px;height:10px}
+.employer-floating-status.working{
+  border-color:rgba(186,255,58,.32);
+  box-shadow:0 18px 55px rgba(98,170,0,.16);
+}
+
+/* Multi-client timers */
+.active-session-list{display:grid;gap:10px}
+.active-session-card{
+  display:grid;
+  grid-template-columns:1.2fr .9fr .7fr auto;
+  gap:12px;
+  align-items:center;
+  border:1px solid var(--line);
+  border-radius:15px;
+  padding:12px;
+  background:rgba(255,255,255,.025);
+}
+.active-session-card .live{
+  color:var(--lime);
+  font-weight:850;
+}
+.active-session-time{
+  font-variant-numeric:tabular-nums;
+  font-weight:900;
+  font-size:16px;
+}
+@media(max-width:760px){
+  .employer-floating-status{left:14px;right:14px;bottom:14px}
+  .active-session-card{grid-template-columns:1fr 1fr}
+  .active-session-card .row-actions{grid-column:1/-1;justify-content:flex-start}
+}

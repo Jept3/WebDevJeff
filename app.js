@@ -1,4 +1,4 @@
-const JEFFDESIGN_BUILD = 'professional-task-crm-2026-09-03';
+const JEFFDESIGN_BUILD = 'multiclient-workflow-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -24,6 +24,7 @@ let detailReturnView = 'clients';
 let formAutosaveTimer = null;
 let submissionAutosaveTimer = null;
 let workSession = null;
+let activeWorkSessions = [];
 let workTimerInterval = null;
 let employerMonitorInterval = null;
 let timeEntries = [];
@@ -308,8 +309,10 @@ async function loadTimeEntries(){
   const {data,error}=await q;
   if(error){console.warn(error);return}
   timeEntries=data||[];
-  workSession=timeEntries.find(x=>!x.clock_out)||null;
+  activeWorkSessions=timeEntries.filter(x=>!x.clock_out);
+  workSession=activeWorkSessions[0]||null;
   startLiveTimer();
+  updateEmployerFloatingStatus();
 }
 function hoursBetween(a,b){
   if(!a)return 0;
@@ -324,78 +327,86 @@ function timeEntryHours(e){return Number(e.hours||hoursBetween(e.clock_in,e.cloc
 function startLiveTimer(){
   clearInterval(workTimerInterval);
   const tick=()=>{
-    const el=$('live-timer');if(!el)return;
-    if(!workSession){el.textContent='00:00:00';return}
-    const sec=Math.floor((Date.now()-new Date(workSession.clock_in).getTime())/1000);
-    const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');
-    el.textContent=`${h}:${m}:${s}`;
+    const selectedId=$('timer-client')?.value;
+    const selected=activeWorkSessions.find(s=>s.client_id===selectedId) || activeWorkSessions[0] || null;
+    workSession=selected;
+
+    const el=$('live-timer');
+    if(el){
+      if(!selected){el.textContent='00:00:00'}
+      else{
+        const sec=Math.floor((Date.now()-new Date(selected.clock_in).getTime())/1000);
+        const h=String(Math.floor(sec/3600)).padStart(2,'0');
+        const m=String(Math.floor(sec%3600/60)).padStart(2,'0');
+        const s=String(sec%60).padStart(2,'0');
+        el.textContent=`${h}:${m}:${s}`;
+      }
+    }
+
+    document.querySelectorAll('[data-active-session-time]').forEach(node=>{
+      const session=activeWorkSessions.find(s=>s.id===node.dataset.activeSessionTime);
+      if(!session)return;
+      const sec=Math.max(0,Math.floor((Date.now()-new Date(session.clock_in).getTime())/1000));
+      const h=String(Math.floor(sec/3600)).padStart(2,'0');
+      const m=String(Math.floor(sec%3600/60)).padStart(2,'0');
+      const s=String(sec%60).padStart(2,'0');
+      node.textContent=`${h}:${m}:${s}`;
+    });
+
+    updateEmployerFloatingStatus();
   };
-  tick();workTimerInterval=setInterval(tick,1000);
+  tick();
+  workTimerInterval=setInterval(tick,1000);
 }
 async function clockIn(){
   if(currentRole!=='admin')return;
-  if(workSession){showToast('A work session is already active');return}
-  const clientId=$('timer-client').value,task=$('timer-task').value.trim();
+  const clientId=$('timer-client').value;
+  const task=$('timer-task').value.trim();
   if(!clientId){showToast('Select a client first');return}
-  const {data,error}=await sb.from('time_entries').insert({
-    user_id:session.user.id,client_id:clientId,task,clock_in:new Date().toISOString(),hourly_rate:Number(billingSettings?.hourly_rate||3)
-  }).select().single();
-  if(error){showToast(error.message);return}
-  workSession=data;timeEntries.unshift(data);startLiveTimer();renderTimePage();showToast('Work session started');
-}
-async function clockOut(){
-  if(currentRole!=='admin'||!workSession){showToast('No active work session');return}
-  const out=new Date().toISOString(),hrs=hoursBetween(workSession.clock_in,out);
-  const {data,error}=await sb.from('time_entries').update({clock_out:out,hours:hrs}).eq('id',workSession.id).select().single();
-  if(error){showToast(error.message);return}
-  timeEntries=timeEntries.map(x=>x.id===data.id?data:x);workSession=null;startLiveTimer();renderTimePage();renderInvoicesPage();showToast('Work session stopped');
-}
-
-function updateManualAmount(){
-  const hours=Number($('manual-hours')?.value||0);
-  const rate=Number($('manual-rate')?.value||billingSettings?.hourly_rate||3);
-  const amount=$('manual-amount');
-  if(amount) amount.textContent=money(hours*rate);
-}
-
-async function addManualHours(){
-  if(currentRole!=='admin')return;
-  const clientId=$('manual-client')?.value;
-  const date=$('manual-date')?.value;
-  const hours=Number($('manual-hours')?.value||0);
-  const rate=Number($('manual-rate')?.value||billingSettings?.hourly_rate||3);
-  const task=$('manual-task')?.value.trim()||'Manual work entry';
-
-  if(!clientId){showToast('Select a client');return}
-  if(!date){showToast('Select the work date');return}
-  if(!hours || hours<=0){showToast('Enter the number of hours worked');return}
-
-  // Store a completed time entry so it works with invoice generation exactly
-  // like a timer-based entry.
-  const startLocal=new Date(`${date}T09:00:00`);
-  const endLocal=new Date(startLocal.getTime()+hours*3600000);
-
+  if(activeWorkSessions.some(s=>s.client_id===clientId)){
+    showToast('This client already has an active work session');
+    return;
+  }
   const {data,error}=await sb.from('time_entries').insert({
     user_id:session.user.id,
     client_id:clientId,
     task,
-    clock_in:startLocal.toISOString(),
-    clock_out:endLocal.toISOString(),
-    hours,
-    hourly_rate:rate
+    clock_in:new Date().toISOString(),
+    hourly_rate:Number(billingSettings?.hourly_rate||3)
   }).select().single();
-
   if(error){showToast(error.message);return}
-
   timeEntries.unshift(data);
-  $('manual-hours').value='';
-  $('manual-task').value='';
-  updateManualAmount();
+  activeWorkSessions.unshift(data);
+  workSession=data;
+  startLiveTimer();
   renderTimePage();
-  renderInvoicesPage();
-  showToast(`${hours.toFixed(2)} hours added`);
+  showToast('Work session started for selected client');
 }
 
+async function stopSessionById(sessionId){
+  if(currentRole!=='admin')return;
+  const active=activeWorkSessions.find(s=>s.id===sessionId);
+  if(!active){showToast('Active session not found');return}
+  const out=new Date().toISOString();
+  const hrs=hoursBetween(active.clock_in,out);
+  const {data,error}=await sb.from('time_entries').update({clock_out:out,hours:hrs}).eq('id',active.id).select().single();
+  if(error){showToast(error.message);return}
+  timeEntries=timeEntries.map(x=>x.id===data.id?data:x);
+  activeWorkSessions=activeWorkSessions.filter(x=>x.id!==data.id);
+  workSession=activeWorkSessions[0]||null;
+  startLiveTimer();
+  renderTimePage();
+  renderInvoicesPage();
+  showToast('Work session stopped');
+}
+
+async function clockOut(){
+  if(currentRole!=='admin')return;
+  const clientId=$('timer-client').value;
+  const active=activeWorkSessions.find(s=>s.client_id===clientId) || activeWorkSessions[0];
+  if(!active){showToast('No active work session');return}
+  await stopSessionById(active.id);
+}
 function renderTimePage(){
   if(!$('time-entry-list')||currentRole!=='admin')return;
   const rate=Number(billingSettings?.hourly_rate||3),now=new Date(),today=now.toISOString().slice(0,10),week=startOfWeek(now);
@@ -403,10 +414,32 @@ function renderTimePage(){
   const weekH=timeEntries.filter(e=>new Date(e.clock_in)>=week).reduce((s,e)=>s+timeEntryHours(e),0);
   const uninvoiced=timeEntries.filter(e=>!e.invoice_id&&e.clock_out).reduce((s,e)=>s+timeEntryHours(e)*Number(e.hourly_rate||rate),0);
   $('time-today').textContent=todayH.toFixed(2)+'h';$('time-week').textContent=weekH.toFixed(2)+'h';$('time-rate').textContent=money(rate);$('time-uninvoiced').textContent=money(uninvoiced);
-  $('timer-status').className='status-chip '+(workSession?'status-ongoing':'status-paused');$('timer-status').textContent=workSession?'● Working now':'● Not working';
-  $('timer-client-label').textContent=workSession?`Working on ${clients.find(c=>c.id===workSession.client_id)?.name||'client'} since ${new Date(workSession.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`:'Select a client before starting work.';
-  $('clock-in').disabled=!!workSession;$('clock-out').disabled=!workSession;
-  $('timer-client').innerHTML='<option value="">Select client…</option>'+clients.map(c=>`<option value="${c.id}" ${workSession?.client_id===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+  const selectedClientId=$('timer-client')?.value||'';
+  const selectedActive=activeWorkSessions.find(s=>s.client_id===selectedClientId)||null;
+  $('timer-status').className='status-chip '+(activeWorkSessions.length?'status-ongoing':'status-paused');
+  $('timer-status').textContent=activeWorkSessions.length?`● ${activeWorkSessions.length} active session${activeWorkSessions.length===1?'':'s'}`:'● Not working';
+  $('timer-client-label').textContent=selectedActive
+    ? `Working on ${clients.find(c=>c.id===selectedActive.client_id)?.name||'client'} since ${new Date(selectedActive.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`
+    : 'Select a client to start or stop that client’s work session.';
+  $('clock-in').disabled=!!selectedActive;
+  $('clock-out').disabled=!selectedActive;
+
+  const previousClient=selectedClientId;
+  $('timer-client').innerHTML='<option value="">Select client…</option>'+clients.map(c=>`<option value="${c.id}">${esc(c.name)}${activeWorkSessions.some(s=>s.client_id===c.id)?' • ACTIVE':''}</option>`).join('');
+  if(previousClient) $('timer-client').value=previousClient;
+
+  const activeBox=$('active-session-list');
+  if(activeBox){
+    activeBox.innerHTML=activeWorkSessions.length?activeWorkSessions.map(s=>{
+      const c=clients.find(x=>x.id===s.client_id)||{};
+      return `<div class="active-session-card">
+        <div><strong>${esc(c.name||'Client')}</strong><small class="muted">${esc(s.task||'General work')}</small></div>
+        <div><span class="muted">Started</span><strong>${esc(new Date(s.clock_in).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}</strong></div>
+        <div><span class="muted">Running</span><div class="active-session-time live" data-active-session-time="${s.id}">00:00:00</div></div>
+        <div class="row-actions"><button class="mini-btn delete" data-stop-session="${s.id}">Stop</button></div>
+      </div>`;
+    }).join(''):'<div class="empty"><strong>No active sessions</strong>Select a client above and click Login / Start.</div>';
+  }
 
   if($('manual-client')){
     const previous=$('manual-client').value;
@@ -621,6 +654,7 @@ async function renderClientPortal(view='client-home'){
     return;
   }
   activeClientId=c.id;
+  updateEmployerFloatingStatus();
 
   if($('portal-client-name')) $('portal-client-name').textContent=c.name||'My Project';
   if($('portal-client-subtitle')) $('portal-client-subtitle').textContent=c.projectType||c.company||'Jeffdesign101 project workspace';
@@ -702,7 +736,7 @@ async function renderClientOverview(c,canEdit){
         <h3>Tasks you've sent</h3>
         <div class="employer-request-grid">
           ${tasks.slice(0,5).map(t=>`<div class="portal-task-card">
-            <div class="task-top"><div><h4>${esc(t.task)}</h4><p>${esc(t.details||'')}</p></div><span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span></div>
+            <div class="task-top"><div><h4>${esc(t.task)}</h4><div class="compact-task-body" data-compact-task-body="${t.id}"><p>${esc(t.details||'')}</p></div><button class="compact-toggle" data-compact-task-toggle="${t.id}">See more</button></div><span class="status-chip ${t.done?'status-complete':'status-ongoing'}">${t.done?'● Complete':'● Open'}</span></div>
             <div class="portal-task-meta"><span>${esc(t.priority||'Normal')}</span>${t.due_date?`<span>Due ${esc(fmtDate(t.due_date))}</span>`:''}</div>
           </div>`).join('')||'<div class="muted">No requests sent yet.</div>'}
         </div>
@@ -832,7 +866,7 @@ async function renderClientTasksPage(c,canEdit){
                 <span>${esc(fmtUpdated(t.created_at))}</span>
               </div>
               <div class="task-card-actions">
-                <button class="task-toggle-link" data-toggle-task="${t.id}">View details</button>
+                <button class="task-toggle-link" data-toggle-task="${t.id}">See more</button>
                 ${canEdit?`<button class="mini-btn edit" data-employer-edit-task="${t.id}">Edit</button>`:''}
               </div>
               <div id="employer-edit-${t.id}" class="employer-task-edit-grid hidden">
@@ -854,7 +888,7 @@ async function renderClientTasksPage(c,canEdit){
   document.querySelectorAll('[data-toggle-task]').forEach(btn=>btn.addEventListener('click',()=>{
     const card=document.querySelector(`[data-task-card="${btn.dataset.toggleTask}"]`);
     const expanded=card.classList.toggle('expanded');
-    btn.textContent=expanded?'Show less':'View details';
+    btn.textContent=expanded?'See less':'See more';
   }));
 
   if(canEdit){
@@ -949,6 +983,32 @@ function startEmployerLiveTimer(activeEntry){
   tick();
   employerMonitorInterval=setInterval(tick,1000);
 }
+
+function updateEmployerFloatingStatus(){
+  const box=$('employer-floating-status');
+  if(!box)return;
+  if(currentRole==='admin' || !session){
+    box.classList.add('hidden');
+    return;
+  }
+  const c=portalClient();
+  if(!c){box.classList.add('hidden');return}
+  const active=timeEntries.find(e=>e.client_id===c.id && !e.clock_out)||null;
+  box.classList.remove('hidden');
+  box.classList.toggle('working',!!active);
+  $('employer-floating-dot').classList.toggle('active',!!active);
+  $('employer-floating-label').textContent=active?'VA Working Now':'VA Offline';
+  if(active){
+    const sec=Math.max(0,Math.floor((Date.now()-new Date(active.clock_in).getTime())/1000));
+    const h=String(Math.floor(sec/3600)).padStart(2,'0');
+    const m=String(Math.floor(sec%3600/60)).padStart(2,'0');
+    const s=String(sec%60).padStart(2,'0');
+    $('employer-floating-time').textContent=`${h}:${m}:${s} · ${active.task||'General work'}`;
+  }else{
+    $('employer-floating-time').textContent='Not currently clocked in';
+  }
+}
+
 async function renderEmployerWorkMonitor(c){
   const entries=timeEntries.filter(e=>e.client_id===c.id);
   const active=entries.find(e=>!e.clock_out)||null;
@@ -1709,12 +1769,13 @@ $('create-account')?.addEventListener('click',async()=>{
   $('login-error').textContent=data.session?'Account created.':'Account created. Check your email to confirm it, then sign in.';
 });
 $('toggle-password')?.addEventListener('click',()=>{const i=$('login-password'),show=i.type==='password';i.type=show?'text':'password';$('toggle-password').textContent=show?'Hide':'Show'});
-$('sign-out')?.addEventListener('click',()=>sb?.auth.signOut());
+$('sign-out')?.addEventListener('click',()=>{ $('employer-floating-status')?.classList.add('hidden'); sb?.auth.signOut(); });
 
 
 $('save-billing-settings')?.addEventListener('click',saveBillingSettings);
 $('clock-in')?.addEventListener('click',clockIn);
 $('clock-out')?.addEventListener('click',clockOut);
+$('timer-client')?.addEventListener('change',()=>{renderTimePage();startLiveTimer();});
 $('add-manual-hours')?.addEventListener('click',addManualHours);
 $('manual-hours')?.addEventListener('input',updateManualAmount);
 $('manual-rate')?.addEventListener('input',updateManualAmount);
@@ -1733,11 +1794,22 @@ document.addEventListener('click',async e=>{
 console.info('Jeffdesign101 build:',JEFFDESIGN_BUILD);
 
 $('task-inbox-filter')?.addEventListener('change',renderTaskInbox);
+$('employer-floating-open')?.addEventListener('click',()=>{if(currentRole!=='admin')renderClientPortal('client-work')});
 $('task-detail-close')?.addEventListener('click',()=>$('task-detail-backdrop').classList.add('hidden'));
 $('task-detail-backdrop')?.addEventListener('click',e=>{if(e.target===$('task-detail-backdrop'))$('task-detail-backdrop').classList.add('hidden')});
 document.addEventListener('click',async e=>{
+  const compact=e.target.closest('[data-compact-task-toggle]');
+  if(compact){
+    const body=document.querySelector(`[data-compact-task-body="${compact.dataset.compactTaskToggle}"]`);
+    if(body){
+      const expanded=body.classList.toggle('expanded');
+      compact.textContent=expanded?'See less':'See more';
+    }
+    return;
+  }
   const open=e.target.closest('[data-admin-open-task]');
   if(open){await openAdminTaskDetail(open.dataset.adminOpenTask);return}
+  const stop=e.target.closest('[data-stop-session]');if(stop){await stopSessionById(stop.dataset.stopSession);return}
   const toggle=e.target.closest('[data-admin-toggle-done]');
   if(toggle){await toggleTaskDone(toggle.dataset.adminToggleDone);return}
 });

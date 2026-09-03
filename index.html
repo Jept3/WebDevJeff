@@ -320,6 +320,14 @@
 
         <article class="panel glass">
           <div class="panel-head">
+            <div><p class="eyebrow">ACTIVE SESSIONS</p><h3>Client timers</h3></div>
+            <span class="muted">You can track separate active sessions for different clients.</span>
+          </div>
+          <div id="active-session-list" class="active-session-list"></div>
+        </article>
+
+        <article class="panel glass">
+          <div class="panel-head">
             <div><p class="eyebrow">WORK HISTORY</p><h3>Time entries</h3></div>
           </div>
           <div id="time-entry-list" class="invoice-list"></div>
@@ -714,9 +722,19 @@
     </div>
   </div>
 
+
+  <div id="employer-floating-status" class="employer-floating-status hidden">
+    <span id="employer-floating-dot" class="work-status-dot"></span>
+    <div>
+      <strong id="employer-floating-label">VA Offline</strong>
+      <small id="employer-floating-time">00:00:00</small>
+    </div>
+    <button id="employer-floating-open" class="mini-btn">View</button>
+  </div>
+
   <div id="toast" class="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=20260903b"></script>
-  <script src="app.js?v=professional-task-crm-20260903"></script>
+  <script src="app.js?v=multiclient-workflow-20260903"></script>
 </body>
 </html>
