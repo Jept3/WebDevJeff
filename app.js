@@ -145,12 +145,6 @@ async function initializeAuth(){
   });
 }
 
-function setView(view){
-  if(currentRole!=='admin' && ['dashboard','projects','trash','clients','time','settings'].includes(view)){
-    view='client-detail';
-  }
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  
 async function loadBillingSettings(){
   if(!sb||!session)return;
   const {data,error}=await sb.from('billing_settings').select('*').eq('user_id',session.user.id).maybeSingle();
@@ -333,7 +327,13 @@ async function markInvoicePaid(id){
   await loadInvoices();renderInvoicesPage();showToast('Invoice marked paid');
 }
 
-document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+
+function setView(view){
+  if(currentRole!=='admin' && ['dashboard','projects','trash','clients','time','settings'].includes(view)){
+    view='client-detail';
+  }
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   $(`${view}-view`)?.classList.add('active');
   const titles={dashboard:'Dashboard',clients:'Client Directory',projects:'Project Monitoring',time:'Time Log',invoices:'Invoices',settings:'Rate & Billing',trash:'Trash','client-detail':currentRole==='admin'?'Client Details':'My Project Portal'};
   els.pageTitle.textContent=titles[view]||'Jeffdesign101';
@@ -777,8 +777,13 @@ $('login-form')?.addEventListener('submit',async e=>{
     if(resolveError||!resolved){$('login-error').textContent='Username not found.';return}
     loginEmail=resolved;
   }
-  const {error}=await sb.auth.signInWithPassword({email:loginEmail,password:$('login-password').value});
-  $('login-error').textContent=error?error.message:'';
+  try {
+    const {error}=await sb.auth.signInWithPassword({email:loginEmail,password:$('login-password').value});
+    $('login-error').textContent=error?error.message:'';
+  } catch (err) {
+    console.error(err);
+    $('login-error').textContent=err?.message||'Unable to sign in. Please try again.';
+  }
 });
 $('create-account')?.addEventListener('click',async()=>{
   if(!configured())return;
