@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b0f0d" />
+  <title>LimeCRM — Client & Website Project Manager</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar glass">
+      <div class="brand">
+        <div class="brand-mark">L</div>
+        <div>
+          <h1>LimeCRM</h1>
+          <p>Client workspace</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-link active" data-view="dashboard">
+          <span>◫</span><span>Dashboard</span>
+        </button>
+        <button class="nav-link" data-view="clients">
+          <span>◎</span><span>Clients</span>
+        </button>
+        <button class="nav-link" data-view="projects">
+          <span>◇</span><span>Projects</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-card">
+        <div class="pulse-dot"></div>
+        <div>
+          <strong>Autosave enabled</strong>
+          <small>Stored in this browser</small>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar glass">
+        <div>
+          <p class="eyebrow">ADMIN WORKSPACE</p>
+          <h2 id="page-title">Dashboard</h2>
+        </div>
+        <div class="top-actions">
+          <div class="global-search">
+            <span>⌕</span>
+            <input id="global-search" type="search" placeholder="Search clients, sites, notes…" />
+          </div>
+          <button id="add-client-top" class="btn btn-primary">＋ Add Client</button>
+        </div>
+      </header>
+
+      <section id="dashboard-view" class="view active">
+        <div class="hero glass">
+          <div>
+            <span class="status-chip status-ongoing">● Live workspace</span>
+            <h3>Client projects, organized beautifully.</h3>
+            <p>Track every website project, client detail, milestone, status and deadline from one clean admin interface.</p>
+          </div>
+          <button id="add-client-hero" class="btn btn-primary large">＋ New Client</button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card glass">
+            <p>Total clients</p>
+            <div class="stat-number" id="stat-clients">0</div>
+            <small>All saved records</small>
+          </article>
+          <article class="stat-card glass">
+            <p>Ongoing</p>
+            <div class="stat-number" id="stat-ongoing">0</div>
+            <small>Currently active</small>
+          </article>
+          <article class="stat-card glass">
+            <p>Completed</p>
+            <div class="stat-number" id="stat-completed">0</div>
+            <small>Delivered projects</small>
+          </article>
+          <article class="stat-card glass">
+            <p>Avg. completion</p>
+            <div class="stat-number" id="stat-duration">—</div>
+            <small>From start to finish</small>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel glass">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">PROJECT HEALTH</p>
+                <h3>Work status</h3>
+              </div>
+            </div>
+            <div class="donut-wrap">
+              <canvas id="status-donut" width="260" height="260"></canvas>
+              <div class="donut-center">
+                <strong id="donut-total">0</strong>
+                <span>projects</span>
+              </div>
+            </div>
+            <div id="donut-legend" class="legend"></div>
+          </article>
+
+          <article class="panel glass">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">ACTIVITY</p>
+                <h3>Projects by month</h3>
+              </div>
+            </div>
+            <div class="chart-area">
+              <canvas id="monthly-chart" width="700" height="330"></canvas>
+            </div>
+          </article>
+        </div>
+
+        <article class="panel glass">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">RECENT</p>
+              <h3>Recent clients</h3>
+            </div>
+            <button class="btn btn-ghost" data-view-jump="clients">View all →</button>
+          </div>
+          <div id="recent-clients" class="recent-list"></div>
+        </article>
+      </section>
+
+      <section id="clients-view" class="view">
+        <article class="panel glass">
+          <div class="directory-toolbar">
+            <div class="search-box">
+              <span>⌕</span>
+              <input id="client-search" type="search" placeholder="Search client name, website, email or tag…" />
+            </div>
+
+            <div class="toolbar-actions">
+              <select id="client-status-filter" class="select">
+                <option value="all">All statuses</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="review">In Review</option>
+                <option value="waiting">Waiting</option>
+                <option value="complete">Complete</option>
+                <option value="paused">Paused</option>
+              </select>
+              <select id="client-sort" class="select">
+                <option value="updated-desc">Last updated</option>
+                <option value="name-asc">Name A–Z</option>
+                <option value="name-desc">Name Z–A</option>
+                <option value="created-desc">Newest first</option>
+                <option value="created-asc">Oldest first</option>
+                <option value="deadline-asc">Deadline soonest</option>
+              </select>
+              <button id="add-client" class="btn btn-primary">＋ Add Client</button>
+            </div>
+          </div>
+          <div id="client-list" class="client-list"></div>
+        </article>
+      </section>
+
+      <section id="projects-view" class="view">
+        <article class="panel glass">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">ALL PROJECTS</p>
+              <h3>Project monitoring</h3>
+            </div>
+          </div>
+          <div id="project-board" class="project-board"></div>
+        </article>
+      </section>
+
+      <section id="client-detail-view" class="view">
+        <div class="detail-toolbar">
+          <button id="detail-back" class="btn btn-ghost">← Back</button>
+          <div class="detail-search search-box">
+            <span>⌕</span>
+            <input id="detail-search" type="search" placeholder="Search this client page…" />
+          </div>
+          <button id="edit-client-detail" class="btn btn-primary">Edit</button>
+        </div>
+
+        <div id="client-detail"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal-backdrop" class="modal-backdrop hidden">
+    <div class="modal glass">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">CLIENT RECORD</p>
+          <h3 id="modal-title">Add client</h3>
+        </div>
+        <button id="modal-close" class="icon-btn">×</button>
+      </div>
+
+      <form id="client-form">
+        <input type="hidden" id="client-id" />
+
+        <div class="form-grid">
+          <label>
+            <span>Client name *</span>
+            <input id="client-name" required placeholder="e.g. Nova Dental Studio" />
+          </label>
+          <label>
+            <span>Company / brand</span>
+            <input id="client-company" placeholder="e.g. Nova Dental" />
+          </label>
+          <label>
+            <span>Email</span>
+            <input id="client-email" type="email" placeholder="hello@example.com" />
+          </label>
+          <label>
+            <span>Phone</span>
+            <input id="client-phone" placeholder="+1 555 000 0000" />
+          </label>
+          <label>
+            <span>Website / domain</span>
+            <input id="client-website" placeholder="https://example.com" />
+          </label>
+          <label>
+            <span>Project type</span>
+            <input id="client-project-type" placeholder="Business website, eCommerce…" />
+          </label>
+          <label>
+            <span>Status</span>
+            <select id="client-status">
+              <option value="ongoing">Ongoing</option>
+              <option value="review">In Review</option>
+              <option value="waiting">Waiting</option>
+              <option value="complete">Complete</option>
+              <option value="paused">Paused</option>
+            </select>
+          </label>
+          <label>
+            <span>Priority</span>
+            <select id="client-priority">
+              <option>Normal</option>
+              <option>High</option>
+              <option>Urgent</option>
+              <option>Low</option>
+            </select>
+          </label>
+          <label>
+            <span>Start date</span>
+            <input id="client-start" type="date" />
+          </label>
+          <label>
+            <span>Deadline</span>
+            <input id="client-deadline" type="date" />
+          </label>
+          <label>
+            <span>Completed date</span>
+            <input id="client-completed" type="date" />
+          </label>
+          <label>
+            <span>Budget</span>
+            <input id="client-budget" placeholder="$2,500" />
+          </label>
+        </div>
+
+        <label class="full">
+          <span>Website project overview</span>
+          <textarea id="client-overview" rows="4" placeholder="What the website is for, target audience, main goals, current stage…"></textarea>
+        </label>
+
+        <div class="form-grid">
+          <label>
+            <span>Hosting</span>
+            <input id="client-hosting" placeholder="Vercel, GitHub Pages, Hostinger…" />
+          </label>
+          <label>
+            <span>CMS / stack</span>
+            <input id="client-stack" placeholder="WordPress, React, HTML/CSS…" />
+          </label>
+          <label>
+            <span>Domain registrar</span>
+            <input id="client-registrar" placeholder="GoDaddy, Namecheap…" />
+          </label>
+          <label>
+            <span>Primary contact</span>
+            <input id="client-contact" placeholder="Name / role" />
+          </label>
+        </div>
+
+        <label class="full">
+          <span>Deliverables</span>
+          <textarea id="client-deliverables" rows="3" placeholder="Home, About, Services, Contact, SEO setup…"></textarea>
+        </label>
+
+        <label class="full">
+          <span>Notes / next steps</span>
+          <textarea id="client-notes" rows="4" placeholder="Feedback, credentials reminder, next action, design notes…"></textarea>
+        </label>
+
+        <label class="full">
+          <span>Tags</span>
+          <input id="client-tags" placeholder="design, seo, ecommerce (comma separated)" />
+        </label>
+
+        <div class="modal-actions">
+          <div>
+            <button type="button" id="delete-client" class="btn btn-danger hidden">Delete</button>
+          </div>
+          <div class="right-actions">
+            <span id="save-state" class="save-state">Autosave ready</span>
+            <button type="button" id="cancel-client" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Client</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
