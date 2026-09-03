@@ -723,21 +723,28 @@
   </div>
 
 
-  <div id="employer-floating-status" class="employer-floating-status hidden" title="Drag to move">
-    <div id="employer-floating-drag" class="floating-drag-handle">⋮⋮</div>
-    <span id="employer-floating-dot" class="work-status-dot"></span>
-    <div>
-      <strong id="employer-floating-label">VA Offline</strong>
-      <small id="employer-floating-time">00:00:00</small>
+  <div id="employer-status-dock" class="employer-status-dock hidden">
+    <button id="employer-status-pill" class="employer-status-pill" type="button">
+      <span id="employer-floating-dot" class="work-status-dot"></span>
+      <span id="employer-floating-label">VA Offline</span>
+      <span id="employer-floating-mini-time">00:00</span>
+    </button>
+
+    <div id="employer-status-popover" class="employer-status-popover hidden">
+      <div class="status-popover-head">
+        <div>
+          <strong id="employer-status-popover-label">VA Offline</strong>
+          <small id="employer-floating-time">Not currently clocked in</small>
+        </div>
+        <button id="employer-status-popover-close" class="icon-btn">×</button>
+      </div>
+      <button id="employer-floating-open" class="btn btn-primary">Open Work Monitor</button>
     </div>
-    <button id="employer-floating-open" class="mini-btn">View</button>
-    <button id="employer-floating-close" class="icon-btn floating-close" title="Hide">×</button>
   </div>
-  <button id="employer-floating-restore" class="floating-restore hidden">VA Status</button>
 
   <div id="toast" class="toast"></div>
   <script src="config.js?v=20260903stable"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=richtext-invoice-ui-20260903"></script>
+  <script src="app.js?v=status-pill-fix-20260903"></script>
 </body>
 </html>

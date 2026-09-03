@@ -1,4 +1,4 @@
-const JEFFDESIGN_BUILD = 'richtext-invoice-ui-2026-09-03';
+const JEFFDESIGN_BUILD = 'status-pill-fix-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -1067,73 +1067,61 @@ function startEmployerLiveTimer(activeEntry){
 }
 
 
-function setupEmployerFloatingControls(){
-  const box=$('employer-floating-status');
-  const handle=$('employer-floating-drag');
-  const close=$('employer-floating-close');
-  const restore=$('employer-floating-restore');
-  if(!box||box.dataset.controlsBound==='1')return;
-  box.dataset.controlsBound='1';
+function setupEmployerStatusDock(){
+  const dock=$('employer-status-dock');
+  const pill=$('employer-status-pill');
+  const popover=$('employer-status-popover');
+  const close=$('employer-status-popover-close');
+  if(!dock||dock.dataset.bound==='1')return;
+  dock.dataset.bound='1';
 
+  pill?.addEventListener('click',()=>{
+    popover?.classList.toggle('hidden');
+  });
   close?.addEventListener('click',()=>{
-    box.classList.add('hidden');
-    restore?.classList.remove('hidden');
-    localStorage.setItem('jeffdesign101_float_hidden','1');
-  });
-  restore?.addEventListener('click',()=>{
-    box.classList.remove('hidden');
-    restore.classList.add('hidden');
-    localStorage.removeItem('jeffdesign101_float_hidden');
+    popover?.classList.add('hidden');
   });
 
-  let dragging=false,offsetX=0,offsetY=0;
-  handle?.addEventListener('pointerdown',e=>{
-    dragging=true;
-    handle.setPointerCapture(e.pointerId);
-    const r=box.getBoundingClientRect();
-    offsetX=e.clientX-r.left;
-    offsetY=e.clientY-r.top;
+  document.addEventListener('click',e=>{
+    if(!dock.contains(e.target)) popover?.classList.add('hidden');
   });
-  handle?.addEventListener('pointermove',e=>{
-    if(!dragging)return;
-    const left=Math.max(8,Math.min(window.innerWidth-box.offsetWidth-8,e.clientX-offsetX));
-    const top=Math.max(8,Math.min(window.innerHeight-box.offsetHeight-8,e.clientY-offsetY));
-    box.style.left=`${left}px`;
-    box.style.top=`${top}px`;
-    box.style.right='auto';
-    box.style.bottom='auto';
-  });
-  handle?.addEventListener('pointerup',()=>{dragging=false});
 }
 
 function updateEmployerFloatingStatus(){
-  const box=$('employer-floating-status');
-  if(!box)return;
-  if(currentRole==='admin' || !session){
-    box.classList.add('hidden');
+  const dock=$('employer-status-dock');
+  if(!dock)return;
+
+  if(currentRole==='admin'||!session){
+    dock.classList.add('hidden');
     return;
   }
+
   const c=portalClient();
-  if(!c){box.classList.add('hidden');return}
-  const active=timeEntries.find(e=>e.client_id===c.id && !e.clock_out)||null;
-  setupEmployerFloatingControls();
-  const userHidden=localStorage.getItem('jeffdesign101_float_hidden')==='1';
-  box.classList.toggle('hidden',userHidden);
-  $('employer-floating-restore')?.classList.toggle('hidden',!userHidden);
-  box.classList.toggle('working',!!active);
-  $('employer-floating-dot').classList.toggle('active',!!active);
-  $('employer-floating-label').textContent=active?'VA Working Now':'VA Offline';
+  if(!c){
+    dock.classList.add('hidden');
+    return;
+  }
+
+  setupEmployerStatusDock();
+  const active=timeEntries.find(e=>e.client_id===c.id&&!e.clock_out)||null;
+
+  dock.classList.remove('hidden');
+  $('employer-floating-dot')?.classList.toggle('active',!!active);
+  $('employer-floating-label').textContent=active?'VA Working':'VA Offline';
+  $('employer-status-popover-label').textContent=active?'VA Working Now':'VA Offline';
+
   if(active){
     const sec=Math.max(0,Math.floor((Date.now()-new Date(active.clock_in).getTime())/1000));
     const h=String(Math.floor(sec/3600)).padStart(2,'0');
-    const m=String(Math.floor(sec%3600/60)).padStart(2,'0');
+    const m=String(Math.floor((sec%3600)/60)).padStart(2,'0');
     const s=String(sec%60).padStart(2,'0');
+    $('employer-floating-mini-time').textContent=`${h}:${m}`;
     $('employer-floating-time').textContent=`${h}:${m}:${s} · ${active.task||'General work'}`;
   }else{
+    $('employer-floating-mini-time').textContent='—';
     $('employer-floating-time').textContent='Not currently clocked in';
   }
 }
-
 async function renderEmployerWorkMonitor(c){
   const entries=timeEntries.filter(e=>e.client_id===c.id);
   const active=entries.find(e=>!e.clock_out)||null;
@@ -1913,7 +1901,7 @@ $('create-account')?.addEventListener('click',async()=>{
   $('login-error').textContent=data.session?'Account created.':'Account created. Check your email to confirm it, then sign in.';
 });
 $('toggle-password')?.addEventListener('click',()=>{const i=$('login-password'),show=i.type==='password';i.type=show?'text':'password';$('toggle-password').textContent=show?'Hide':'Show'});
-$('sign-out')?.addEventListener('click',()=>{ $('employer-floating-status')?.classList.add('hidden'); if(sb?.auth) sb.auth.signOut(); });
+$('sign-out')?.addEventListener('click',()=>{ $('employer-status-dock')?.classList.add('hidden'); if(sb?.auth) sb.auth.signOut(); });
 
 
 $('save-billing-settings')?.addEventListener('click',saveBillingSettings);

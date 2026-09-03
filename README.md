@@ -795,3 +795,22 @@ Employer floating work status can now:
 - remember hidden state for that browser
 
 No SQL migration is required for these UI changes.
+
+
+## Compact Employer VA status
+
+The large floating VA status card has been replaced with a small, non-blocking status pill in the lower-right corner.
+
+Default state:
+- small VA Working / VA Offline pill
+- tiny elapsed-time indicator
+
+Clicking it opens a small popover with:
+- full current status
+- live elapsed time
+- current task
+- Open Work Monitor button
+
+The popover closes with X or by clicking outside it.
+
+No SQL update is required.
