@@ -1,4 +1,4 @@
-const JEFFDESIGN_BUILD = 'employer-portal-2026-09-03';
+const JEFFDESIGN_BUILD = 'employer-routing-fix-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -111,7 +111,18 @@ async function loadCloudData(){
   renderAll();
 }
 function renderAll(){
-  updateDashboard(); renderClients(); renderProjectBoard(); renderTrash(); renderTimePage(); renderInvoicesPage(); renderBillingSettings();
+  if(currentRole==='admin'){
+    updateDashboard();
+    renderClients();
+    renderProjectBoard();
+    renderTrash();
+    renderTimePage();
+    renderInvoicesPage();
+    renderBillingSettings();
+  }else{
+    // Employer UI is rendered only through the dedicated Employer Portal.
+    renderInvoicesPage();
+  }
 }
 async function onSignedIn(){
   lockUI(false);
@@ -121,11 +132,13 @@ async function onSignedIn(){
     setView('dashboard');
   }else if(clients[0]){
     activeClientId=clients[0].id;
-    renderClientPortal('client-home');
+    await renderClientPortal('client-home');
   }else{
     activeClientId=null;
-    $('client-home-content').innerHTML=`<article class="panel glass"><div class="empty"><strong>No client project linked yet</strong>Please contact Jeffdesign101 so your account can be connected to a project.</div></article>`;
-    setView('client-home');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    $('client-home-view')?.classList.add('active');
+    $('client-home-content').innerHTML=`<article class="panel glass"><div class="empty"><strong>No employer project linked yet</strong>Please contact Jeffdesign101 so this employer account can be connected to a project.</div></article>`;
+    els.pageTitle.textContent='Employer Portal';
   }
   document.body.classList.remove('auth-loading');
 }
@@ -502,8 +515,16 @@ async function saveEmployerSubmissionField(clientId, field, value, stateId){
 
 async function renderClientPortal(view='client-home'){
   if(currentRole==='admin')return;
+
+  // Employer accounts must never retain an Admin view as active.
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $(`${view}-view`)?.classList.add('active');
+
   const c=portalClient();
-  if(!c){setView('client-home');return}
+  if(!c){
+    els.pageTitle.textContent='Employer Portal';
+    return;
+  }
   activeClientId=c.id;
 
   if($('portal-client-name')) $('portal-client-name').textContent=c.name||'My Project';
@@ -519,8 +540,6 @@ async function renderClientPortal(view='client-home'){
   if(view==='client-invoices') await renderClientInvoicesPage(c);
   if(view==='client-account') renderClientAccountPage(c);
 
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  $(`${view}-view`)?.classList.add('active');
   els.pageTitle.textContent={ 'client-home':'Employer Portal','client-tasks':'Tasks','client-files':'Files','client-invoices':'Invoices','client-account':'Account'}[view]||'Employer Portal';
 }
 
@@ -787,8 +806,14 @@ function setView(view){
 
   if(view.startsWith('client-') && view!=='client-detail' && currentRole!=='admin'){
     renderClientPortal(view).catch(error=>{
-      console.error('Client portal render failed:',error);
-      showToast(error?.message||'Could not open client portal');
+      console.error('Employer portal render failed:',error);
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      $('client-home-view')?.classList.add('active');
+      els.pageTitle.textContent='Employer Portal';
+      if($('client-home-content')){
+        $('client-home-content').innerHTML=`<article class="panel glass"><div class="empty"><strong>Employer portal could not load</strong>${esc(error?.message||'Please refresh or contact the administrator.')}</div></article>`;
+      }
+      showToast(error?.message||'Could not open employer portal');
     });
   }
 
