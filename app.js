@@ -317,6 +317,27 @@ async function loadInvoices(){
   if(error){console.warn(error);return}
   invoices=data||[];
 }
+
+function invoiceUsesManualHours(){
+  return $('invoice-hours-mode')?.value==='manual';
+}
+function invoiceHoursValue(){
+  if(invoiceUsesManualHours()){
+    return Math.max(0,Number($('invoice-manual-hours')?.value||0));
+  }
+  return selectedInvoiceEntries().reduce((s,e)=>s+timeEntryHours(e),0);
+}
+function updateInvoiceHoursModeUI(){
+  const manual=invoiceUsesManualHours();
+  $('invoice-manual-hours-wrap')?.classList.toggle('hidden',!manual);
+  if($('invoice-hours-help')){
+    $('invoice-hours-help').textContent=manual
+      ? 'Manual mode lets you enter billable hours directly, even without Time Log entries.'
+      : 'Time Log mode automatically totals uninvoiced work entries in the selected period.';
+  }
+  updateInvoicePreviewNumbers();
+}
+
 function selectedInvoiceEntries(){
   const clientId=$('invoice-client')?.value,start=$('invoice-start')?.value,end=$('invoice-end')?.value;
   return timeEntries.filter(e=>{
@@ -327,8 +348,10 @@ function selectedInvoiceEntries(){
 }
 function updateInvoicePreviewNumbers(){
   if(!$('invoice-hours-preview'))return;
-  const entries=selectedInvoiceEntries(),hours=entries.reduce((s,e)=>s+timeEntryHours(e),0),rate=Number($('invoice-rate').value||billingSettings?.hourly_rate||3);
-  $('invoice-hours-preview').textContent=hours.toFixed(2)+' hrs';$('invoice-total-preview').textContent=money(hours*rate);
+  const hours=invoiceHoursValue();
+  const rate=Number($('invoice-rate').value||billingSettings?.hourly_rate||3);
+  $('invoice-hours-preview').textContent=hours.toFixed(2)+' hrs';
+  $('invoice-total-preview').textContent=money(hours*rate);
 }
 function nextInvoiceNumber(){
   const nums=invoices.map(i=>Number(String(i.invoice_number||'').match(/\d+/)?.[0]||0));return 'INV-'+String(Math.max(1000,...nums)+1).padStart(4,'0');
@@ -345,7 +368,7 @@ function renderInvoicesPage(){
     if(!$('invoice-number').value)$('invoice-number').value=nextInvoiceNumber();
     if(!$('invoice-date').value)$('invoice-date').value=new Date().toISOString().slice(0,10);
     if(!$('invoice-rate').value)$('invoice-rate').value=Number(billingSettings?.hourly_rate||3).toFixed(2);
-    updateInvoicePreviewNumbers();
+    updateInvoiceHoursModeUI();
   }
   $('invoice-list').innerHTML=visible.length?visible.map(i=>{
     const c=clients.find(x=>x.id===i.client_id)||{};
@@ -371,20 +394,70 @@ function openInvoicePreview(invoice){
   $('invoice-preview-backdrop').classList.remove('hidden');
 }
 function previewInvoiceDraft(){
-  const entries=selectedInvoiceEntries(),hours=entries.reduce((s,e)=>s+timeEntryHours(e),0),rate=Number($('invoice-rate').value||3),clientId=$('invoice-client').value;
-  openInvoicePreview({invoice_number:$('invoice-number').value||nextInvoiceNumber(),invoice_date:$('invoice-date').value,period_start:$('invoice-start').value,period_end:$('invoice-end').value,hours,hourly_rate:rate,total:hours*rate,description:$('invoice-description').value,notes:$('invoice-notes').value,status:'pending',client_id:clientId});
+  const hours=invoiceHoursValue();
+  const rate=Number($('invoice-rate').value||3);
+  const clientId=$('invoice-client').value;
+  if(!clientId){showToast('Select a client');return}
+  if(hours<=0){showToast('Enter billable hours');return}
+  openInvoicePreview({
+    invoice_number:$('invoice-number').value||nextInvoiceNumber(),
+    invoice_date:$('invoice-date').value,
+    period_start:$('invoice-start').value,
+    period_end:$('invoice-end').value,
+    hours,
+    hourly_rate:rate,
+    total:hours*rate,
+    description:$('invoice-description').value,
+    notes:$('invoice-notes').value,
+    status:'pending',
+    client_id:clientId
+  });
 }
 async function createInvoice(){
   if(currentRole!=='admin')return;
-  const entries=selectedInvoiceEntries(),clientId=$('invoice-client').value;
+  const manual=invoiceUsesManualHours();
+  const entries=manual?[]:selectedInvoiceEntries();
+  const clientId=$('invoice-client').value;
   if(!clientId){showToast('Select a client');return}
-  if(!entries.length){showToast('No uninvoiced time entries in this period');return}
-  const hours=entries.reduce((s,e)=>s+timeEntryHours(e),0),rate=Number($('invoice-rate').value||billingSettings?.hourly_rate||3),total=hours*rate;
-  const payload={user_id:session.user.id,client_id:clientId,invoice_number:$('invoice-number').value||nextInvoiceNumber(),invoice_date:$('invoice-date').value,period_start:$('invoice-start').value||null,period_end:$('invoice-end').value||null,hours,hourly_rate:rate,total,description:$('invoice-description').value.trim()||'Online Work',notes:$('invoice-notes').value.trim(),status:'pending'};
+
+  const hours=invoiceHoursValue();
+  if(hours<=0){
+    showToast(manual?'Enter manual billable hours':'No uninvoiced time entries in this period');
+    return;
+  }
+
+  const rate=Number($('invoice-rate').value||billingSettings?.hourly_rate||3);
+  const total=hours*rate;
+  const payload={
+    user_id:session.user.id,
+    client_id:clientId,
+    invoice_number:$('invoice-number').value||nextInvoiceNumber(),
+    invoice_date:$('invoice-date').value,
+    period_start:$('invoice-start').value||null,
+    period_end:$('invoice-end').value||null,
+    hours,
+    hourly_rate:rate,
+    total,
+    description:$('invoice-description').value.trim()||'Online Work',
+    notes:$('invoice-notes').value.trim(),
+    status:'pending'
+  };
+
   const {data,error}=await sb.from('invoices').insert(payload).select().single();
   if(error){showToast(error.message);return}
-  await sb.from('time_entries').update({invoice_id:data.id}).in('id',entries.map(e=>e.id));
-  await loadTimeEntries();await loadInvoices();renderInvoicesPage();$('invoice-number').value=nextInvoiceNumber();showToast('Invoice created');
+
+  // Only Time Log mode links time entries to the invoice.
+  if(!manual && entries.length){
+    await sb.from('time_entries').update({invoice_id:data.id}).in('id',entries.map(e=>e.id));
+  }
+
+  await loadTimeEntries();
+  await loadInvoices();
+  renderInvoicesPage();
+  $('invoice-number').value=nextInvoiceNumber();
+  if($('invoice-manual-hours')) $('invoice-manual-hours').value='';
+  updateInvoicePreviewNumbers();
+  showToast('Invoice created');
 }
 async function markInvoicePaid(id){
   if(currentRole!=='admin')return;
@@ -1081,6 +1154,8 @@ $('add-manual-hours')?.addEventListener('click',addManualHours);
 $('manual-hours')?.addEventListener('input',updateManualAmount);
 $('manual-rate')?.addEventListener('input',updateManualAmount);
 ['invoice-client','invoice-start','invoice-end','invoice-rate'].forEach(id=>$(id)?.addEventListener('input',updateInvoicePreviewNumbers));
+$('invoice-hours-mode')?.addEventListener('change',updateInvoiceHoursModeUI);
+$('invoice-manual-hours')?.addEventListener('input',updateInvoicePreviewNumbers);
 $('preview-invoice')?.addEventListener('click',previewInvoiceDraft);
 $('create-invoice')?.addEventListener('click',createInvoice);
 $('invoice-preview-close')?.addEventListener('click',()=>$('invoice-preview-backdrop').classList.add('hidden'));

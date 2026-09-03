@@ -602,3 +602,16 @@ body.locked .noise{filter:blur(5px);pointer-events:none;user-select:none}
   .portal-worklog-row{grid-template-columns:1fr 1fr}
   .client-portal-nav{top:82px}
 }
+
+
+/* Invoice manual-hours option */
+.invoice-hours-help{
+  margin-top:-3px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.025);
+  border-radius:12px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.5;
+}

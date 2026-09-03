@@ -323,6 +323,20 @@
               <label><span>Work period start</span><input id="invoice-start" type="date" /></label>
               <label><span>Work period end</span><input id="invoice-end" type="date" /></label>
               <label><span>Hourly rate</span><input id="invoice-rate" type="number" min="0" step="0.01" /></label>
+              <label>
+                <span>Hours source</span>
+                <select id="invoice-hours-mode">
+                  <option value="time-log">Use Time Log</option>
+                  <option value="manual">Enter Hours Manually</option>
+                </select>
+              </label>
+              <label id="invoice-manual-hours-wrap" class="hidden">
+                <span>Manual hours</span>
+                <input id="invoice-manual-hours" type="number" min="0.01" step="0.25" placeholder="e.g. 7" />
+              </label>
+            </div>
+            <div id="invoice-hours-help" class="invoice-hours-help">
+              Time Log mode automatically totals uninvoiced work entries in the selected period.
             </div>
             <label class="full"><span>Description</span><input id="invoice-description" value="Online Work" /></label>
             <label class="full"><span>Notes / payment instructions</span><textarea id="invoice-notes" rows="3" placeholder="Payment instructions, reference, notes..."></textarea></label>

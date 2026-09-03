@@ -484,3 +484,21 @@ supabase functions deploy admin-create-client-user
 The updated Edge Function is required for username-only client accounts.
 
 Existing admin login continues using your normal admin email/password.
+
+
+## Manual Hours Directly in Invoice Generator
+
+The invoice page now has an **Hours Source** selector:
+
+- `Use Time Log`
+- `Enter Hours Manually`
+
+With manual mode, you can enter the number of billable hours directly.
+
+Example:
+
+- Hours: `7`
+- Hourly rate: `$3.00`
+- Total: `$21.00`
+
+Manual invoices do not require a Time Log entry. Time Log mode still prevents the same tracked work entry from being invoiced twice.
