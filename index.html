@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="description" content="Jeffdesign101 secure VA workspace for employers, tasks, time tracking, files and billing.">
   <title>Jeffdesign101 — VA Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=v2-modern">
+  <link rel="stylesheet" href="styles.css?v=v2.2-glass">
 </head>
 <body class="booting">
   <div class="ambient ambient-a" aria-hidden="true"></div>
@@ -40,6 +40,17 @@
         <button data-admin-view="trash" class="nav-btn">♲ <span>Trash</span></button>
       </nav>
       <div class="cloud-note"><i></i><div><strong>Cloud connected</strong><small>Saved to Supabase</small></div></div>
+    </aside>
+    <aside id="employerMobileNav" class="mobile-side-panel glass" aria-label="Employer navigation">
+      <div class="brand mobile-nav-brand"><img src="assets/jeffdesign101-logo.png"><div><strong>Jeffdesign101</strong><small>Employer Portal</small></div></div>
+      <nav class="mobile-side-links">
+        <button data-employer-view="overview" class="nav-btn active">◈ <span>Overview</span></button>
+        <button data-employer-view="tasks" class="nav-btn">☷ <span>Tasks</span></button>
+        <button data-employer-view="files" class="nav-btn">⛁ <span>Files</span></button>
+        <button data-employer-view="work" class="nav-btn">◷ <span>Work Monitor</span></button>
+        <button data-employer-view="invoices" class="nav-btn">▤ <span>Invoices</span></button>
+        <button data-employer-view="account" class="nav-btn">⚙ <span>Account</span></button>
+      </nav>
     </aside>
 
     <main class="main">
@@ -122,6 +133,6 @@
 
   <script src="config.js?v=clean-v1"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=v2-modern"></script>
+  <script src="app.js?v=v2.2-glass"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const BUILD="v2-modern";
+const BUILD="v2.2-glass";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -101,6 +101,7 @@ function renderAdmin(view){
 function renderEmployer(view){
   state.navSeq++;state.employerView=view;
   $$("[data-employer-view]").forEach(b=>b.classList.toggle("active",b.dataset.employerView===view));
+  closeMobileNav();
   const map={overview:renderEmployerOverview,tasks:renderEmployerTasks,files:renderEmployerFiles,work:renderEmployerWork,invoices:renderEmployerInvoices,account:renderEmployerAccount};
   map[view]?.();
 }
@@ -238,8 +239,8 @@ async function renderEmployerOverview(){
       <article class="card glass"><span class="section-label">CURRENT REQUEST</span><h3>Send a task to your VA</h3>${editable?taskComposerHtml("overview"):'<p class="muted">This portal is View Only.</p>'}</article>
       <article class="card glass"><span class="section-label">CURRENT REQUESTS</span><h3>Tasks you've sent</h3>${taskListHtml(tasks.slice(0,5),false)}</article>
     </div>
-    <article class="card glass" style="margin-top:13px"><span class="section-label">PROJECT INFORMATION</span><h3>Website information & instructions</h3>${editable?`<textarea id="projectInfo" rows="7">${esc(sub?.project_information||"")}</textarea><button class="btn primary" data-action="save-project-info" style="margin-top:9px">Save Information</button>`:`<div>${nl2br(sub?.project_information||"No project information yet.")}</div>`}</article>
-    <article class="card glass" style="margin-top:13px"><span class="section-label">SHARED NOTES</span><h3>Notes for your VA</h3>${editable?`<textarea id="sharedNotes" rows="6">${esc(sub?.shared_notes||"")}</textarea><button class="btn primary" data-action="save-shared-notes" style="margin-top:9px">Save Notes</button>`:`<div>${nl2br(sub?.shared_notes||"No notes yet.")}</div>`}</article>
+    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">PROJECT INFORMATION</span><h3>Website information & instructions</h3>${editable?`<div class="stack-field"><textarea id="projectInfo" class="soft-textarea" rows="7" placeholder="Hosting details, admin access, content notes, feature requests, URLs, and everything your VA needs…">${esc(sub?.project_information||"")}</textarea><div class="card-actions start"><button class="btn primary" data-action="save-project-info">Save Information</button></div></div>`:`<div class="read-block">${nl2br(sub?.project_information||"No project information yet.")}</div>`}</article>
+    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">SHARED NOTES</span><h3>Notes for your VA</h3>${editable?`<div class="stack-field"><textarea id="sharedNotes" class="soft-textarea" rows="6" placeholder="Share reminders, follow-ups, revisions, deadlines, or anything your VA should remember…">${esc(sub?.shared_notes||"")}</textarea><div class="card-actions start"><button class="btn primary" data-action="save-shared-notes">Save Notes</button></div></div>`:`<div class="read-block">${nl2br(sub?.shared_notes||"No notes yet.")}</div>`}</article>
     <article class="card glass" style="margin-top:13px"><div class="section-head"><div><span class="section-label">FILES</span><h3>Send files to your VA</h3></div>${editable?'<label class="btn primary">+ Upload Files<input id="overviewFiles" type="file" multiple hidden></label>':""}</div>${fileListHtml(files,c,editable)}</article>`;
   setupRichEditors();updateStatusDock();
 }
@@ -363,7 +364,7 @@ function updateStatusDock(){
 }
 
 function setMobileNav(open){
-  const allowed=roleIsAdmin()&&window.matchMedia("(max-width: 950px)").matches;
+  const allowed=window.matchMedia("(max-width: 950px)").matches;
   const next=!!open&&allowed;
   document.body.classList.toggle("mobile-nav-open",next);
   const btn=$("mobileMenuBtn"),backdrop=$("mobileNavBackdrop");
