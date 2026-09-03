@@ -814,3 +814,35 @@ Clicking it opens a small popover with:
 The popover closes with X or by clicking outside it.
 
 No SQL update is required.
+
+
+# Session + Invoice + VA Status Fix
+
+## Login persistence
+Supabase Auth is now explicitly configured with:
+- `persistSession: true`
+- `autoRefreshToken: true`
+- `localStorage`
+- a stable Jeffdesign101 storage key
+
+Refreshing the page should keep Admin and Employer signed in.
+
+A temporary workspace/database loading error no longer forces the login screen when a valid session still exists.
+
+## Invoice preview
+Both Admin and Employer invoice View now:
+- fetch the invoice by ID if necessary
+- fetch the correct client record if necessary
+- load the VA/Admin billing profile before rendering
+- open the modal explicitly
+
+Employer invoices no longer fall back to the hidden internal login email.
+
+## VA status close button
+The X button now hides the complete VA status widget.
+A small `VA Status` restore button appears so the Employer can bring it back.
+
+## SQL update required
+Run the latest `supabase-schema.sql` once.
+
+It adds a SELECT policy allowing authenticated linked Employers to read the VA billing profile that is intentionally displayed on invoices.

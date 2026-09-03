@@ -887,3 +887,23 @@ drop trigger if exists guard_admin_task_update_trigger on public.client_tasks;
 create trigger guard_admin_task_update_trigger
 before update on public.client_tasks
 for each row execute procedure public.guard_admin_task_update();
+
+
+-- ============================================================
+-- Invoice seller profile visibility
+-- ============================================================
+
+-- Billing profile contains the VA/business information intentionally displayed
+-- on invoices. Employer accounts need SELECT access to render the invoice.
+drop policy if exists "billing_settings_employer_invoice_read" on public.billing_settings;
+create policy "billing_settings_employer_invoice_read"
+on public.billing_settings for select
+to authenticated
+using (
+  public.is_admin()
+  or exists (
+    select 1 from public.clients c
+    where c.auth_user_id = auth.uid()
+      and c.deleted_at is null
+  )
+);

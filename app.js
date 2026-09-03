@@ -1,4 +1,4 @@
-const JEFFDESIGN_BUILD = 'status-pill-fix-2026-09-03';
+const JEFFDESIGN_BUILD = 'session-invoice-status-fix-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -50,7 +50,15 @@ async function ensureSupabaseClient(){
     throw new Error('Supabase library failed to load. Refresh the page and try again.');
   }
 
-  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{
+    auth:{
+      persistSession:true,
+      autoRefreshToken:true,
+      detectSessionInUrl:true,
+      storage:window.localStorage,
+      storageKey:'jeffdesign101-auth'
+    }
+  });
 
   if(!sb?.auth){
     sb=null;
@@ -186,7 +194,6 @@ function renderAll(){
   }
 }
 async function onSignedIn(){
-  lockUI(false);
   await resolveProfile();
   await loadCloudData();
   if(currentRole==='admin'){
@@ -201,6 +208,7 @@ async function onSignedIn(){
     $('client-home-content').innerHTML=`<article class="panel glass"><div class="empty"><strong>No employer project linked yet</strong>Please contact Jeffdesign101 so this employer account can be connected to a project.</div></article>`;
     els.pageTitle.textContent='Employer Portal';
   }
+  lockUI(false);
   document.body.classList.remove('auth-loading');
 }
 async function initializeAuth(){
@@ -216,33 +224,68 @@ async function initializeAuth(){
   if(error) throw error;
   session=data.session;
   if(session) await onSignedIn(); else { lockUI(true); document.body.classList.remove('auth-loading'); }
-  client.auth.onAuthStateChange((_event,newSession)=>{
-    session=newSession;
+  client.auth.onAuthStateChange((event,newSession)=>{
+    if(newSession) session=newSession;
+
     if(newSession){
-      // The form submit already loads the workspace after sign-in.
-      // This callback mainly handles restored sessions / external auth changes.
       if(!profile){
         setTimeout(()=>{
           onSignedIn().catch(err=>{
             console.error('Post-login load failed:',err);
-            lockUI(true);
-            $('login-error').textContent=err?.message||'Signed in, but the CRM could not load.';
+            // Keep the authenticated session visible; don't pretend the user was logged out.
+            lockUI(false);
+            showToast(err?.message||'Signed in, but workspace data could not load.');
           });
         },0);
       }
-    } else {
-      profile=null;clients=[];trash=[];lockUI(true);
+      return;
+    }
+
+    if(event==='SIGNED_OUT'){
+      session=null;
+      profile=null;
+      clients=[];
+      trash=[];
+      lockUI(true);
+      document.body.classList.remove('auth-loading');
     }
   });
 }
 
 async function loadBillingSettings(){
   if(!sb||!session)return;
-  const {data,error}=await sb.from('billing_settings').select('*').eq('user_id',session.user.id).maybeSingle();
-  if(error){console.warn(error);return}
+
+  let query=sb.from('billing_settings').select('*');
+  if(currentRole==='admin'){
+    query=query.eq('user_id',session.user.id);
+  }else{
+    // Employers need the VA's public invoice profile, not their hidden Auth email.
+    query=query.order('updated_at',{ascending:false}).limit(1);
+  }
+
+  const {data,error}=await query.maybeSingle();
+  if(error){
+    console.warn('Billing settings load failed:',error);
+    billingSettings={
+      hourly_rate:3,
+      business_name:'Jeffdesign101 / Webdev VA',
+      full_name:'',
+      email:'',
+      phone:'',
+      address:'Philippines',
+      payment_instructions:''
+    };
+    return;
+  }
+
   billingSettings=data||{
-    hourly_rate:3,business_name:'Webdev VA',full_name:'',email:session.user.email||'',
-    phone:'',address:'Philippines',payment_instructions:''
+    hourly_rate:3,
+    business_name:'Jeffdesign101 / Webdev VA',
+    full_name:'',
+    email:'',
+    phone:'',
+    address:'Philippines',
+    payment_instructions:''
   };
 }
 async function saveBillingSettings(){
@@ -580,21 +623,34 @@ function renderInvoicesPage(){
 }
 
 async function showInvoiceById(id){
-  let invoice=invoices.find(x=>String(x.id)===String(id));
+  try{
+    let invoice=invoices.find(x=>String(x.id)===String(id));
 
-  if(!invoice){
-    const {data,error}=await sb.from('invoices').select('*').eq('id',id).single();
-    if(error){showToast(error.message);return}
-    invoice=data;
-  }
+    if(!invoice){
+      const {data,error}=await sb.from('invoices').select('*').eq('id',id).single();
+      if(error) throw error;
+      invoice=data;
+    }
 
-  const client=clients.find(c=>c.id===invoice.client_id)||null;
+    let client=clients.find(c=>c.id===invoice.client_id)||null;
+    if(!client){
+      const {data,error}=await sb.from('clients').select('*').eq('id',invoice.client_id).single();
+      if(!error && data) client=fromRow(data);
+    }
 
-  if(!billingSettings && currentRole==='admin'){
     await loadBillingSettings();
-  }
 
-  openInvoicePreview(invoice,client);
+    const backdrop=$('invoice-preview-backdrop');
+    const content=$('invoice-preview-content');
+    if(!backdrop||!content) throw new Error('Invoice preview window is missing from this build.');
+
+    content.innerHTML=buildInvoiceHTML(invoice,client);
+    backdrop.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+  }catch(error){
+    console.error('Invoice preview failed:',error);
+    showToast(error?.message||'Could not open invoice');
+  }
 }
 
 function buildInvoiceHTML(invoice,client){
@@ -1075,10 +1131,35 @@ function setupEmployerStatusDock(){
   if(!dock||dock.dataset.bound==='1')return;
   dock.dataset.bound='1';
 
-  pill?.addEventListener('click',()=>{
+  let restore=$('employer-status-restore');
+  if(!restore){
+    restore=document.createElement('button');
+    restore.id='employer-status-restore';
+    restore.type='button';
+    restore.className='floating-restore hidden';
+    restore.textContent='VA Status';
+    document.body.appendChild(restore);
+  }
+
+  pill?.addEventListener('click',e=>{
+    e.stopPropagation();
     popover?.classList.toggle('hidden');
   });
-  close?.addEventListener('click',()=>{
+
+  close?.addEventListener('click',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    popover?.classList.add('hidden');
+    dock.classList.add('hidden');
+    restore.classList.remove('hidden');
+    sessionStorage.setItem('jeffdesign101_va_status_hidden','1');
+  });
+
+  restore.addEventListener('click',e=>{
+    e.stopPropagation();
+    sessionStorage.removeItem('jeffdesign101_va_status_hidden');
+    dock.classList.remove('hidden');
+    restore.classList.add('hidden');
     popover?.classList.add('hidden');
   });
 
@@ -1086,7 +1167,6 @@ function setupEmployerStatusDock(){
     if(!dock.contains(e.target)) popover?.classList.add('hidden');
   });
 }
-
 function updateEmployerFloatingStatus(){
   const dock=$('employer-status-dock');
   if(!dock)return;
@@ -1105,7 +1185,10 @@ function updateEmployerFloatingStatus(){
   setupEmployerStatusDock();
   const active=timeEntries.find(e=>e.client_id===c.id&&!e.clock_out)||null;
 
-  dock.classList.remove('hidden');
+  const manuallyHidden=sessionStorage.getItem('jeffdesign101_va_status_hidden')==='1';
+  const restore=$('employer-status-restore');
+  dock.classList.toggle('hidden',manuallyHidden);
+  restore?.classList.toggle('hidden',!manuallyHidden);
   $('employer-floating-dot')?.classList.toggle('active',!!active);
   $('employer-floating-label').textContent=active?'VA Working':'VA Offline';
   $('employer-status-popover-label').textContent=active?'VA Working Now':'VA Offline';
@@ -1916,8 +1999,16 @@ $('invoice-hours-mode')?.addEventListener('change',updateInvoiceHoursModeUI);
 $('invoice-manual-hours')?.addEventListener('input',updateInvoicePreviewNumbers);
 $('preview-invoice')?.addEventListener('click',previewInvoiceDraft);
 $('create-invoice')?.addEventListener('click',createInvoice);
-$('invoice-preview-close')?.addEventListener('click',()=>$('invoice-preview-backdrop').classList.add('hidden'));
-$('invoice-preview-backdrop')?.addEventListener('click',e=>{if(e.target===$('invoice-preview-backdrop'))$('invoice-preview-backdrop').classList.add('hidden')});
+$('invoice-preview-close')?.addEventListener('click',()=>{
+  $('invoice-preview-backdrop')?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+});
+$('invoice-preview-backdrop')?.addEventListener('click',e=>{
+  if(e.target===$('invoice-preview-backdrop')){
+    $('invoice-preview-backdrop').classList.add('hidden');
+    document.body.classList.remove('modal-open');
+  }
+});
 document.addEventListener('click',async e=>{
   const vi=e.target.closest('[data-view-invoice]');if(vi){await showInvoiceById(vi.dataset.viewInvoice)}
   const mp=e.target.closest('[data-mark-paid]');if(mp)await markInvoicePaid(mp.dataset.markPaid);
@@ -1948,12 +2039,20 @@ document.addEventListener('click',async e=>{
 
 initializeAuth().catch(e=>{
   console.error('CRM initialization failed:',e);
-  lockUI(true);
   document.body.classList.remove('auth-loading');
-  $('login-error').textContent=e.message||'Could not initialize CRM.';
+
+  // A data-loading error must not erase or visually replace a valid saved session.
+  if(session){
+    lockUI(false);
+    showToast(e?.message||'Workspace data could not load. Refresh to retry.');
+  }else{
+    lockUI(true);
+    $('login-error').textContent=e.message||'Could not initialize CRM.';
+  }
+
   const btn=$('login-submit');
   if(btn){
     btn.disabled=false;
-    btn.textContent='Retry Login';
+    btn.textContent='Login';
   }
 });
