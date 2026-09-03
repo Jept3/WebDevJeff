@@ -1,4 +1,4 @@
-const JEFFDESIGN_BUILD = 'multiclient-workflow-2026-09-03';
+const JEFFDESIGN_BUILD = 'null-auth-fix-2026-09-03';
 
 const cfg = window.LIME_CRM_CONFIG || {};
 const statusLabels = {ongoing:'Ongoing',review:'In Review',waiting:'Waiting',complete:'Complete',paused:'Paused'};
@@ -38,6 +38,32 @@ function configured(){
     !cfg.supabaseUrl.includes('YOUR_SUPABASE') &&
     !cfg.supabasePublishableKey.includes('YOUR_SUPABASE');
 }
+
+async function ensureSupabaseClient(){
+  if(sb?.auth) return sb;
+
+  if(!configured()){
+    throw new Error('Supabase configuration is missing.');
+  }
+  if(!window.supabase?.createClient){
+    throw new Error('Supabase library did not load. Refresh the page and check your internet connection.');
+  }
+
+  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+
+  if(!sb?.auth){
+    sb=null;
+    throw new Error('Supabase client could not initialize.');
+  }
+
+  const loginBtn=$('login-submit');
+  if(loginBtn){
+    loginBtn.disabled=false;
+    loginBtn.textContent='Login';
+  }
+  return sb;
+}
+
 function showToast(msg){
   els.toast.textContent=msg; els.toast.classList.add('show');
   setTimeout(()=>els.toast.classList.remove('show'),1800);
@@ -153,9 +179,10 @@ async function initializeAuth(){
   if(!configured()){
     lockUI(true);
     $('login-error').innerHTML='<div class="setup-error">Supabase is not configured yet. Open <b>config.js</b>, add your Supabase URL and publishable key, then run <b>supabase-schema.sql</b> in the Supabase SQL Editor.</div>';
+    if($('login-submit')){$('login-submit').disabled=true;$('login-submit').textContent='Not configured'}
     return;
   }
-  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+  await ensureSupabaseClient();
   const {data}=await sb.auth.getSession();
   session=data.session;
   if(session) await onSignedIn(); else { lockUI(true); document.body.classList.remove('auth-loading'); }
@@ -1523,7 +1550,8 @@ async function createOrResetClientLogin(){
 
     setCredentialState('Creating secure login…','working');
 
-    const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+    const client=await ensureSupabaseClient();
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
     if(sessionError) throw sessionError;
     const accessToken=sessionData?.session?.access_token;
     if(!accessToken) throw new Error('Your admin session expired. Sign out and sign in again.');
@@ -1737,26 +1765,39 @@ window.addEventListener('resize',()=>{if(document.querySelector('#dashboard-view
 
 $('login-form')?.addEventListener('submit',async e=>{
   e.preventDefault();
-  if(!configured())return;
-  $('login-error').textContent='Signing in…';
-  const identifier=$('login-username').value.trim();
-  let loginEmail=identifier;
-  if(!identifier.includes('@')){
-    const {data:resolved,error:resolveError}=await sb.rpc('resolve_login_email',{login_name:identifier});
-    if(resolveError||!resolved){$('login-error').textContent='Username not found.';return}
-    loginEmail=resolved;
-  }
-  try {
-    const {data,error}=await sb.auth.signInWithPassword({email:loginEmail,password:$('login-password').value});
-    if(error){
-      $('login-error').textContent=error.message;
-      return;
+
+  const btn=$('login-submit');
+  try{
+    btn.disabled=true;
+    btn.textContent='Signing in…';
+    $('login-error').textContent='Signing in…';
+
+    const client=await ensureSupabaseClient();
+
+    const identifier=$('login-username').value.trim();
+    const password=$('login-password').value;
+    let loginEmail=identifier;
+
+    if(!identifier.includes('@')){
+      const {data:resolved,error:resolveError}=await client.rpc('resolve_login_email',{login_name:identifier});
+      if(resolveError) throw resolveError;
+      if(!resolved) throw new Error('Username not found.');
+      loginEmail=resolved;
     }
+
+    const {data,error}=await client.auth.signInWithPassword({email:loginEmail,password});
+    if(error) throw error;
+
     session=data.session;
     $('login-error').textContent='';
-  } catch (err) {
-    console.error(err);
+
+    // onAuthStateChange will load the role/portal.
+  }catch(err){
+    console.error('Login failed:',err);
     $('login-error').textContent=err?.message||'Unable to sign in. Please try again.';
+  }finally{
+    btn.disabled=false;
+    btn.textContent='Login';
   }
 });
 $('create-account')?.addEventListener('click',async()=>{
@@ -1764,12 +1805,13 @@ $('create-account')?.addEventListener('click',async()=>{
   const email=$('login-username').value.trim(),password=$('login-password').value;
   if(!email||password.length<6){$('login-error').textContent='Enter an email and a password of at least 6 characters.';return}
   $('login-error').textContent='Creating account…';
-  const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.href}});
+  const client=await ensureSupabaseClient();
+  const {data,error}=await client.auth.signUp({email,password,options:{emailRedirectTo:location.href}});
   if(error){$('login-error').textContent=error.message;return}
   $('login-error').textContent=data.session?'Account created.':'Account created. Check your email to confirm it, then sign in.';
 });
 $('toggle-password')?.addEventListener('click',()=>{const i=$('login-password'),show=i.type==='password';i.type=show?'text':'password';$('toggle-password').textContent=show?'Hide':'Show'});
-$('sign-out')?.addEventListener('click',()=>{ $('employer-floating-status')?.classList.add('hidden'); sb?.auth.signOut(); });
+$('sign-out')?.addEventListener('click',()=>{ $('employer-floating-status')?.classList.add('hidden'); if(sb?.auth) sb.auth.signOut(); });
 
 
 $('save-billing-settings')?.addEventListener('click',saveBillingSettings);
