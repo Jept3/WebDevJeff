@@ -457,3 +457,58 @@ body.pwa-sheet-open{overflow:hidden}
 .rich-task-title i,.rich-task-title em{font-style:italic}
 .rich-task-title u{text-decoration:underline}
 .mini-btn.danger{color:#ff9da3;border-color:rgba(255,100,110,.22);background:rgba(255,80,90,.05)}
+
+
+/* ---------- v2.8 mobile touchscreen scroll fix ---------- */
+html{min-height:100%;overflow-x:hidden;scroll-behavior:smooth}
+body{min-height:100%;overflow-x:hidden;overscroll-behavior-y:auto;touch-action:pan-y}
+.app,.main,.view{min-height:0}
+.main,.view{overflow:visible}
+
+/* .glass previously overrode .modal's overflow:auto because it was declared later. */
+.modal.glass,
+.invoice-modal{
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  touch-action:pan-y;
+}
+
+.task-preview.expanded{
+  max-height:none!important;
+  height:auto!important;
+  overflow:visible!important;
+  touch-action:pan-y;
+}
+.task-preview.expanded:after{display:none!important}
+.task-card,.table-list,.rich-output{touch-action:pan-y}
+.rich-output{max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch}
+
+@media(max-width:950px){
+  .view{padding-bottom:calc(110px + env(safe-area-inset-bottom));}
+  .modal-backdrop{
+    align-items:flex-start;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    touch-action:pan-y;
+    padding-top:max(8px,env(safe-area-inset-top));
+    padding-bottom:max(8px,env(safe-area-inset-bottom));
+  }
+  .modal.glass,.invoice-modal{
+    width:100%;
+    max-height:calc(100dvh - max(16px,env(safe-area-inset-top)) - max(16px,env(safe-area-inset-bottom)));
+    margin:auto 0;
+  }
+  .task-card{overflow:visible}
+}
+
+@media(max-width:620px){
+  .modal.glass,.invoice-modal{
+    max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 12px);
+    border-radius:18px;
+  }
+  .task-preview{font-size:13px;line-height:1.65}
+  .task-card{padding-bottom:18px}
+}

@@ -70,3 +70,10 @@ Because this is a static frontend, serve the directory with any local static ser
 - Added cursor/execCommand/append fallbacks so pasted content is not lost.
 - Employer can delete their own requests from Overview and Tasks when portal permission is `edit`.
 - Delete remains protected by Supabase RLS and is limited to the signed-in employer's own project/task.
+
+
+## v2.8 mobile scroll fix
+- Fixed glass-modal overflow conflict that prevented touch scrolling on mobile.
+- Added iOS momentum scrolling and safe-area-aware modal heights.
+- Expanded task previews now fully reveal content.
+- Updated PWA cache version so installed apps receive the fix.

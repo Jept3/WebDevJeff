@@ -1,4 +1,4 @@
-const BUILD="v2.6-task-rich-delete";
+const BUILD="v2.8-mobile-scroll";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -364,16 +364,30 @@ function insertHtmlAtCursor(html,editor){
   try{target.insertAdjacentHTML("beforeend",html);return true}catch{return false}
 }
 function cleanEditorAfterNativePaste(editor){
-  requestAnimationFrame(()=>{
+  // Run after the browser has committed its native paste. setTimeout is more
+  // reliable than a single RAF in Safari/iOS standalone PWAs.
+  setTimeout(()=>requestAnimationFrame(()=>{
     if(!editor?.isConnected)return;
-    const safe=editor.dataset.inlineRich?sanitizeInlineRich(editor.innerHTML||""):sanitizeRich(editor.innerHTML||"");
+    const isInline=editor.dataset.inlineRich==="1";
+    const safe=isInline?sanitizeInlineRich(editor.innerHTML||""):sanitizeRich(editor.innerHTML||"");
     if(editor.innerHTML!==safe)editor.innerHTML=safe;
     editor.classList.toggle("has-content",!!stripHtml(editor.innerHTML).trim());
     editor.dispatchEvent(new Event("input",{bubbles:true}));
-  });
+    // Keep caret usable after sanitizing a title pasted on iPhone/iPad.
+    if(isInline){
+      try{const sel=window.getSelection(),range=document.createRange();range.selectNodeContents(editor);range.collapse(false);sel.removeAllRanges();sel.addRange(range)}catch{}
+    }
+  }),0);
 }
 function handleOfficePaste(e){
   const editor=e.currentTarget;
+  // Task titles use native paste on purpose. Safari/iOS/PWA clipboard APIs are
+  // inconsistent inside contenteditable; native paste first + sanitize after
+  // is the most reliable path and still preserves safe inline formatting.
+  if(editor.dataset.inlineRich==="1"){
+    cleanEditorAfterNativePaste(editor);
+    return;
+  }
   const dt=e.clipboardData||window.clipboardData;
   // Safari/iOS/PWA can expose the paste event without readable clipboard data.
   // In that case DO NOT block native paste; sanitize immediately afterwards.
@@ -381,11 +395,10 @@ function handleOfficePaste(e){
   const html=dt.getData?.("text/html")||"";
   const text=dt.getData?.("text/plain")||"";
   if(!html&&!text){cleanEditorAfterNativePaste(editor);return}
-  const cleaned=editor.dataset.inlineRich?(html?sanitizeInlineRich(html):esc(text.replace(/\s+/g," "))):(html?sanitizeRich(html):nl2br(text));
+  const cleaned=html?sanitizeRich(html):nl2br(text);
   if(!cleaned){cleanEditorAfterNativePaste(editor);return}
   e.preventDefault();
   if(!insertHtmlAtCursor(cleaned,editor)){
-    // Last-resort fallback: preserve user data instead of swallowing the paste.
     editor.insertAdjacentHTML("beforeend",cleaned);
   }
   editor.classList.toggle("has-content",!!stripHtml(editor.innerHTML).trim());
@@ -606,4 +619,4 @@ init();
 
 // v2.6: keep rich task titles compact and safe.
 document.addEventListener("keydown",e=>{const ed=e.target.closest?.('[data-inline-rich="1"]');if(ed&&e.key==="Enter"){e.preventDefault();document.execCommand("insertText",false," ")}});
-document.addEventListener("input",e=>{const ed=e.target.closest?.('[data-inline-rich="1"]');if(ed&&ed.innerHTML.length>1000)ed.innerHTML=sanitizeInlineRich(ed.innerHTML).slice(0,1000)});
+document.addEventListener("input",e=>{const ed=e.target.closest?.('[data-inline-rich="1"]');if(!ed)return; if(ed.innerHTML.length>1000)ed.innerHTML=sanitizeInlineRich(ed.innerHTML).slice(0,1000)});
