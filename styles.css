@@ -615,3 +615,39 @@ body.locked .noise{filter:blur(5px);pointer-events:none;user-select:none}
   font-size:11px;
   line-height:1.5;
 }
+
+
+/* Credential creation fixes */
+.credential-actions-v2{
+  grid-template-columns:minmax(260px,1fr) auto;
+  align-items:stretch;
+}
+.credential-password-wrap{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+}
+.credential-password-wrap input{
+  width:100%;
+  min-width:0;
+}
+.credential-show-btn{
+  min-width:64px;
+}
+.credential-help{
+  margin-top:9px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.5;
+}
+.credential-result{
+  display:block;
+  margin-top:9px;
+  min-height:16px;
+}
+.credential-result.success{color:#aef78d}
+.credential-result.error{color:#ff9da3}
+.credential-result.working{color:#ffd789}
+@media(max-width:760px){
+  .credential-actions-v2{grid-template-columns:1fr}
+}

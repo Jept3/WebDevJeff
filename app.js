@@ -964,20 +964,99 @@ async function addTask(clientId){
 }
 async function createOrResetClientLogin(){
   if(currentRole!=='admin')return;
-  const clientId=$('client-id').value;
+
+  const resultEl=$('credential-result');
+  const button=$('create-client-login');
   const username=$('client-username').value.trim();
   const password=$('client-temp-password').value;
-  if(!clientId){$('credential-result').textContent='Save the client record first.';return}
-  if(!username){$('credential-result').textContent='Enter a client username.';return}
-  if(password.length<8){$('credential-result').textContent='Temporary password must be at least 8 characters.';return}
-  $('credential-result').textContent='Creating login…';
-  const {data,error}=await sb.functions.invoke('admin-create-client-user',{body:{clientId,username,password}});
-  if(error){$('credential-result').textContent=error.message;return}
-  $('credential-result').textContent=`Login ready. Username: ${username}`;
-  $('client-temp-password').value='';
-  await loadCloudData();
-}
 
+  const setCredentialState=(message,type='')=>{
+    resultEl.textContent=message;
+    resultEl.className='save-state credential-result'+(type?' '+type:'');
+  };
+
+  if(!$('client-name').value.trim()){
+    setCredentialState('Enter the client name first.','error');
+    $('client-name').focus();
+    return;
+  }
+  if(!username){
+    setCredentialState('Enter a client username.','error');
+    $('client-username').focus();
+    return;
+  }
+  if(password.length<8){
+    setCredentialState('Temporary password must be at least 8 characters.','error');
+    $('client-temp-password').focus();
+    return;
+  }
+
+  button.disabled=true;
+  setCredentialState('Saving client record…','working');
+
+  try{
+    // A new client no longer needs a separate Save step.
+    // This also saves normal client fields before login creation/reset.
+    const saved=await saveForm(false);
+    if(!saved) throw new Error('Could not save the client record.');
+    const clientId=saved.id;
+    $('client-id').value=clientId;
+    els.deleteClient.classList.remove('hidden');
+
+    setCredentialState('Creating secure login…','working');
+
+    const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+    if(sessionError) throw sessionError;
+    const accessToken=sessionData?.session?.access_token;
+    if(!accessToken) throw new Error('Your admin session expired. Sign out and sign in again.');
+
+    // Use a direct request so we can display the real HTTP error instead of
+    // the generic "Failed to send a request to the Edge Function" message.
+    let response;
+    try{
+      response=await fetch(`${cfg.supabaseUrl}/functions/v1/admin-create-client-user`,{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'apikey':cfg.supabasePublishableKey,
+          'Authorization':`Bearer ${accessToken}`
+        },
+        body:JSON.stringify({clientId,username,password})
+      });
+    }catch(networkError){
+      throw new Error(
+        'Cannot reach the Supabase Edge Function. Confirm that admin-create-client-user is deployed and that its Verify JWT setting is OFF.'
+      );
+    }
+
+    const raw=await response.text();
+    let payload={};
+    try{payload=raw?JSON.parse(raw):{}}catch(_){payload={error:raw}}
+
+    if(!response.ok){
+      const detail=payload?.error||payload?.message||`HTTP ${response.status}`;
+      if(response.status===401){
+        throw new Error(`Edge Function authorization failed (401): ${detail}. In Supabase Edge Functions, turn OFF the built-in Verify JWT setting for this function, then redeploy.`);
+      }
+      if(response.status===404){
+        throw new Error('Edge Function not found (404). Deploy a function named exactly: admin-create-client-user.');
+      }
+      throw new Error(`Edge Function error (${response.status}): ${detail}`);
+    }
+
+    setCredentialState(`Login ready — Username: ${payload.username||username}`,'success');
+    $('client-temp-password').value='';
+    $('client-temp-password').type='password';
+    if($('toggle-client-temp-password')) $('toggle-client-temp-password').textContent='Show';
+
+    await loadCloudData();
+  }catch(error){
+    console.error('Client login creation failed:',error);
+    setCredentialState(error?.message||'Could not create the client login.','error');
+  }finally{
+    button.disabled=false;
+  }
+}
 async function openClient(id,returnView='clients'){
   const c=clients.find(x=>x.id===id);if(!c)return;activeClientId=id;detailReturnView=returnView;
   await renderClientDetail(c);setView('client-detail');
@@ -990,7 +1069,16 @@ async function openModal(id=null){
   const c=id?clients.find(x=>x.id===id):null;
   Object.entries(fields).forEach(([key,elId])=>{$(elId).value=key==='tags'?(c?(c.tags||[]).join(', '):''):(c?(c[key]||''):(key==='status'?'ongoing':key==='priority'?'Normal':''))});
   $('client-submitted-info').value='';
-  els.deleteClient.classList.toggle('hidden',!id);els.saveState.textContent=id?'Autosave on':'Save to create client';
+  if($('client-temp-password')){
+    $('client-temp-password').value='';
+    $('client-temp-password').type='password';
+  }
+  if($('toggle-client-temp-password')) $('toggle-client-temp-password').textContent='Show';
+  if($('credential-result')){
+    $('credential-result').textContent='';
+    $('credential-result').className='save-state credential-result';
+  }
+  els.deleteClient.classList.toggle('hidden',!id);els.saveState.textContent=id?'Autosave on':'New client — save or create login when ready';
   els.modalBackdrop.classList.remove('hidden');await renderModalFiles(id);
   if(id){try{const s=await getSubmission(id);$('client-submitted-info').value=s?.info||''}catch(e){}}
 }
@@ -1013,10 +1101,22 @@ async function saveForm(show=true){
   }
   await loadCloudData();if(show)showToast('Client saved');return saved;
 }
-function scheduleFormAutosave(){
-  if(!$('client-id').value||currentRole!=='admin')return;
-  clearTimeout(formAutosaveTimer);els.saveState.textContent='Saving…';
-  formAutosaveTimer=setTimeout(()=>saveForm(false).then(()=>els.saveState.textContent='Autosaved').catch(()=>els.saveState.textContent='Save failed'),700);
+function scheduleFormAutosave(event){
+  if(currentRole!=='admin')return;
+
+  // Login credentials have their own explicit Save/Create button.
+  // Do not let normal form autosave fire while username/password is being edited.
+  if(event?.target?.closest?.('.credential-panel'))return;
+
+  if(!$('client-id').value)return;
+  clearTimeout(formAutosaveTimer);
+  els.saveState.textContent='Saving…';
+  formAutosaveTimer=setTimeout(
+    ()=>saveForm(false)
+      .then(()=>els.saveState.textContent='Autosaved')
+      .catch(()=>els.saveState.textContent='Save failed'),
+    700
+  );
 }
 
 function safeFileName(name){return name.replace(/[^\w.\-() ]+/g,'_').replace(/\s+/g,'_').slice(-160)}
@@ -1101,6 +1201,13 @@ els.clientForm?.addEventListener('submit',async e=>{e.preventDefault();const c=a
 els.clientForm?.addEventListener('input',scheduleFormAutosave);els.clientForm?.addEventListener('change',scheduleFormAutosave);
 els.deleteClient?.addEventListener('click',async()=>{const id=$('client-id').value;if(id&&confirm('Move this client to Trash?')){await moveToTrash(id);closeModal();setView('clients')}});
 $('create-client-login')?.addEventListener('click',createOrResetClientLogin);
+$('toggle-client-temp-password')?.addEventListener('click',()=>{
+  const input=$('client-temp-password');
+  if(!input)return;
+  const show=input.type==='password';
+  input.type=show?'text':'password';
+  $('toggle-client-temp-password').textContent=show?'Hide':'Show';
+});
 $('client-files')?.addEventListener('change',async e=>{let id=$('client-id').value;if(!id){const c=await saveForm(false);id=c?.id||''}if(id&&e.target.files?.length){await uploadFiles(id,[...e.target.files]);e.target.value=''}});
 $('empty-trash')?.addEventListener('click',emptyTrash);
 els.clientSearch?.addEventListener('input',()=>renderClients());els.clientSort?.addEventListener('change',()=>renderClients());els.clientStatusFilter?.addEventListener('change',()=>renderClients());

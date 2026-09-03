@@ -607,11 +607,15 @@
             <span class="credential-title">Client Login Credentials</span>
             <small>Create or reset the client login. Password is sent securely to the server function and is never stored in the CRM database.</small>
           </div>
-          <div class="credential-actions">
-            <input id="client-temp-password" type="password" placeholder="Temporary password (8+ characters)" />
-            <button type="button" id="create-client-login" class="btn btn-ghost">Create / Reset Login</button>
+          <div class="credential-actions credential-actions-v2">
+            <div class="credential-password-wrap">
+              <input id="client-temp-password" type="password" autocomplete="new-password" placeholder="Temporary password (8+ characters)" />
+              <button type="button" id="toggle-client-temp-password" class="password-toggle credential-show-btn">Show</button>
+            </div>
+            <button type="button" id="create-client-login" class="btn btn-primary">Save Client + Create / Reset Login</button>
           </div>
-          <div id="credential-result" class="save-state"></div>
+          <div class="credential-help">Username/password changes are not autosaved. Click the button above when you are ready. The password is never stored as plain text.</div>
+          <div id="credential-result" class="save-state credential-result"></div>
         </div>
 
         <label class="full">
