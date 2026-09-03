@@ -240,3 +240,57 @@ input,textarea,select,.rich-wrap{transition:border-color .2s ease,box-shadow .2s
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.ambient{display:none}}
 @media(max-width:950px){.main{padding-top:10px}.topbar{position:relative;top:auto}.view{margin-top:10px}}
 @media(max-width:620px){.command-btn{display:none}.topbar{border-radius:16px}.hero{padding:18px}.hero h1{font-size:30px}.stat strong{font-size:24px}.toolbar>*{width:100%}.toolbar .btn{width:100%}.modal-backdrop{padding:8px}.modal{border-radius:18px;padding:15px}.command-backdrop{padding:6vh 10px 10px}}
+
+/* ---------- v2.1 mobile navigation fix ---------- */
+.topbar-heading{display:flex;align-items:center;gap:11px;min-width:0}
+.mobile-menu-btn{display:none;flex:0 0 auto;font-size:18px;line-height:1}
+.mobile-nav-backdrop{display:none}
+
+@media(max-width:950px){
+  /* The original responsive rule hid the Admin sidebar completely. On mobile it
+     becomes an off-canvas drawer instead, so every Admin destination remains reachable. */
+  body:not(.employer) .mobile-menu-btn{display:grid;place-items:center}
+  body:not(.employer) .sidebar{
+    display:flex;
+    position:fixed;
+    inset:0 auto 0 0;
+    width:min(82vw,300px);
+    height:100dvh;
+    z-index:1001;
+    padding:18px;
+    overflow-y:auto;
+    transform:translateX(-105%);
+    transition:transform .28s cubic-bezier(.2,.75,.2,1);
+    box-shadow:24px 0 70px rgba(0,0,0,.5);
+  }
+  body:not(.employer).mobile-nav-open .sidebar{transform:translateX(0)}
+  body:not(.employer) .mobile-nav-backdrop{
+    display:block;
+    position:fixed;
+    inset:0;
+    z-index:1000;
+    border:0;
+    padding:0;
+    background:rgba(0,0,0,.62);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .24s ease;
+    backdrop-filter:blur(3px);
+  }
+  body:not(.employer).mobile-nav-open .mobile-nav-backdrop{opacity:1;pointer-events:auto}
+  body.mobile-nav-open{overflow:hidden}
+  body:not(.employer) .sidebar .nav-btn{min-height:48px;font-size:14px}
+  body:not(.employer) .sidebar .brand{padding-right:8px}
+  .topbar{gap:10px}
+  .topbar-heading{flex:1;min-width:0}
+  .topbar-heading>div{min-width:0}
+  .topbar h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+
+@media(max-width:520px){
+  .topbar{padding:11px 12px}
+  .top-actions{gap:6px}
+  .role-badge{display:none}
+  #signOutBtn{padding:9px 10px;font-size:12px}
+  .mobile-menu-btn{width:38px;height:38px}
+}

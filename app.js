@@ -87,6 +87,7 @@ function configureRoleUI(){
   $("employerTabs").classList.toggle("hidden",roleIsAdmin());
   document.body.classList.toggle("employer",!roleIsAdmin());
   document.documentElement.classList.toggle("employer-mode",!roleIsAdmin());
+  closeMobileNav();
   updateStatusDock();
 }
 
@@ -361,10 +362,20 @@ function updateStatusDock(){
   $("statusMiniTime").textContent=a?clockString(new Date()-new Date(a.clock_in)).slice(0,5):"—";$("statusFullTime").textContent=a?`${clockString(new Date()-new Date(a.clock_in))} · ${a.task||"General work"}`:"Not currently clocked in";
 }
 
+function setMobileNav(open){
+  const allowed=roleIsAdmin()&&window.matchMedia("(max-width: 950px)").matches;
+  const next=!!open&&allowed;
+  document.body.classList.toggle("mobile-nav-open",next);
+  const btn=$("mobileMenuBtn"),backdrop=$("mobileNavBackdrop");
+  if(btn){btn.setAttribute("aria-expanded",String(next));btn.setAttribute("aria-label",next?"Close navigation":"Open navigation")}
+  if(backdrop)backdrop.classList.toggle("hidden",!next);
+}
+function closeMobileNav(){setMobileNav(false)}
+
 document.addEventListener("click",async e=>{
   const a=e.target.closest("[data-action]"),av=e.target.closest("[data-admin-view]"),ev=e.target.closest("[data-employer-view]"),close=e.target.closest("[data-close]");
   if(close)return closeModal(close.dataset.close);
-  if(av&&roleIsAdmin())return renderAdmin(av.dataset.adminView);
+  if(av&&roleIsAdmin()){closeMobileNav();return renderAdmin(av.dataset.adminView)}
   if(ev&&!roleIsAdmin())return renderEmployer(ev.dataset.employerView);
   if(!a)return;
   const id=a.dataset.id,act=a.dataset.action;
@@ -451,11 +462,15 @@ function runCommandButton(btn){if(!btn)return;const view=btn.dataset.commandView
 function installViewMotion(){const view=$("view");if(!view)return;new MutationObserver(()=>{view.classList.remove("view-enter");requestAnimationFrame(()=>view.classList.add("view-enter"))}).observe(view,{childList:true})}
 function setBusy(button,busy,label="Working…"){if(!button)return;if(busy){button.dataset.oldText=button.textContent;button.textContent=label;button.disabled=true;button.setAttribute("aria-busy","true")}else{button.textContent=button.dataset.oldText||button.textContent;button.disabled=false;button.removeAttribute("aria-busy")}}
 
+$("mobileMenuBtn")?.addEventListener("click",()=>setMobileNav(!document.body.classList.contains("mobile-nav-open")));
+$("mobileNavBackdrop")?.addEventListener("click",closeMobileNav);
+window.addEventListener("resize",()=>{if(window.innerWidth>950)closeMobileNav()});
+
 $("commandBtn")?.addEventListener("click",openCommandPalette);
 $("commandPalette")?.addEventListener("click",e=>{if(e.target===$("commandPalette"))closeCommandPalette();const b=e.target.closest("[data-command-view],[data-command-action]");if(b)runCommandButton(b)});
 $("commandSearch")?.addEventListener("input",e=>renderCommandResults(e.target.value));
 $("commandSearch")?.addEventListener("keydown",e=>{const buttons=$$("#commandResults .command-item");if(!buttons.length)return;let i=Math.max(0,buttons.findIndex(b=>b.classList.contains("selected")));if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();buttons[i].classList.remove("selected");i=(i+(e.key==="ArrowDown"?1:-1)+buttons.length)%buttons.length;buttons[i].classList.add("selected");buttons[i].scrollIntoView({block:"nearest"})}else if(e.key==="Enter"){e.preventDefault();runCommandButton(buttons[i])}});
-document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("commandPalette")?.classList.contains("hidden")?openCommandPalette():closeCommandPalette()}if(e.key==="Escape"){closeCommandPalette();$$(".modal-backdrop:not(.hidden)").forEach(m=>closeModal(m.id))}});
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("commandPalette")?.classList.contains("hidden")?openCommandPalette():closeCommandPalette()}if(e.key==="Escape"){closeMobileNav();closeCommandPalette();$$(".modal-backdrop:not(.hidden)").forEach(m=>closeModal(m.id))}});
 window.addEventListener("beforeunload",stopTicker);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopTicker();else if(state.session)startTicker()});
 installViewMotion();
