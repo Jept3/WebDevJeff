@@ -336,7 +336,7 @@ async function markInvoicePaid(id){
 document.querySelectorAll('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   $(`${view}-view`)?.classList.add('active');
   const titles={dashboard:'Dashboard',clients:'Client Directory',projects:'Project Monitoring',time:'Time Log',invoices:'Invoices',settings:'Rate & Billing',trash:'Trash','client-detail':currentRole==='admin'?'Client Details':'My Project Portal'};
-  els.pageTitle.textContent=titles[view]||'LimeCRM';
+  els.pageTitle.textContent=titles[view]||'Jeffdesign101';
   if(view==='clients')renderClients();
   if(view==='projects')renderProjectBoard();
   if(view==='trash')renderTrash();

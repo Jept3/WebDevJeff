@@ -411,3 +411,68 @@ body.locked .noise{filter:blur(5px);pointer-events:none;user-select:none}
   .timer-display{font-size:40px}.timer-controls{grid-template-columns:1fr}.invoice-row{grid-template-columns:1fr}
   .invoice-live-total{justify-content:space-between;gap:12px}.invoice-paper{padding:20px}.invoice-paper-header{grid-template-columns:1fr}.invoice-paper h1{text-align:left;font-size:30px}
 }
+
+
+/* Jeffdesign101 branding */
+.brand-logo{
+  overflow:hidden;
+  background:#050805!important;
+  padding:0!important;
+}
+.brand-logo img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.brand h1{
+  letter-spacing:.01em;
+}
+.brand-cover{
+  min-height:310px;
+  background:
+    linear-gradient(90deg, rgba(4,7,5,.80) 0%, rgba(4,7,5,.56) 45%, rgba(4,7,5,.42) 100%),
+    url("assets/jeffdesign101-cover.png") center center / cover no-repeat !important;
+  position:relative;
+  overflow:hidden;
+  align-items:flex-end;
+}
+.brand-cover:after{
+  display:none!important;
+}
+.brand-cover-overlay{
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 85% 35%, rgba(183,255,0,.09), transparent 24%),
+    linear-gradient(to top, rgba(0,0,0,.42), transparent 55%);
+  pointer-events:none;
+}
+.brand-cover .hero-content,
+.brand-cover .btn{
+  position:relative;
+  z-index:2;
+}
+.brand-cover h3{
+  max-width:560px;
+  text-shadow:0 3px 22px rgba(0,0,0,.8);
+}
+.brand-cover h3 span{
+  color:var(--lime);
+}
+.brand-cover p{
+  max-width:650px;
+  color:#d3ddd5;
+  text-shadow:0 2px 14px rgba(0,0,0,.8);
+}
+.login-card .brand-logo{
+  width:58px;
+  height:58px;
+  border-radius:16px;
+}
+@media(max-width:760px){
+  .brand-cover{
+    min-height:270px;
+    background-position:center center!important;
+  }
+}

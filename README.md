@@ -1,6 +1,6 @@
-# LimeCRM — Supabase Cloud Edition
+# Jeffdesign101 — Supabase Cloud Edition
 
-This is the upgraded multi-user version of LimeCRM for GitHub Pages + Supabase.
+This is the upgraded multi-user version of Jeffdesign101 for GitHub Pages + Supabase.
 
 ## What changed
 
@@ -342,3 +342,14 @@ It adds:
 ## Important
 
 The site records work-session timestamps and calculates billable time. For invoicing, review the generated hours before sending an invoice to ensure your records match your actual work agreement with the client.
+
+
+## Jeffdesign101 branding
+
+This edition includes the custom Jeffdesign101 logo and cover artwork:
+
+- `assets/jeffdesign101-logo.png`
+- `assets/jeffdesign101-cover.png`
+
+The logo is used in the sidebar and login screen.
+The cover artwork is used as the main dashboard hero background.
