@@ -1,4 +1,4 @@
-const BUILD="v2.4-richpaste";
+const BUILD="v2.2-glass";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -159,8 +159,8 @@ async function renderClientDetail(id){
     <article class="card glass" style="margin-top:10px"><div class="section-head"><div><span class="section-label">EMPLOYER / WEBSITE PROJECT</span><h3>${esc(c.name)}</h3><p class="muted">${esc(c.company||"")}</p></div><div>${statusPill(c.status)} <button class="mini-btn" data-action="edit-client" data-id="${c.id}">Edit</button></div></div>
     <div class="info-grid"><div class="info"><span>Project</span><strong>${esc(c.project_type||"—")}</strong></div><div class="info"><span>Priority</span><strong>${esc(c.priority||"Normal")}</strong></div><div class="info"><span>Started</span><strong>${fmtDate(c.start_date)}</strong></div><div class="info"><span>Deadline</span><strong>${fmtDate(c.deadline)}</strong></div></div></article>
     <div class="grid2">
-      <article class="card glass"><span class="section-label">EMPLOYER INFORMATION</span><h3>Project information</h3><div>${richStoredHtml(sub?.project_information||"No employer project information yet.")}</div></article>
-      <article class="card glass"><span class="section-label">SHARED NOTES</span><h3>Notes from employer</h3><div>${richStoredHtml(sub?.shared_notes||"No shared notes yet.")}</div></article>
+      <article class="card glass"><span class="section-label">EMPLOYER INFORMATION</span><h3>Project information</h3><div>${nl2br(sub?.project_information||"No employer project information yet.")}</div></article>
+      <article class="card glass"><span class="section-label">SHARED NOTES</span><h3>Notes from employer</h3><div>${nl2br(sub?.shared_notes||"No shared notes yet.")}</div></article>
     </div>
     <article class="card glass" style="margin-top:13px"><div class="section-head"><div><span class="section-label">EMPLOYER TASKS</span><h3>Read-only requests</h3></div><button class="mini-btn" data-admin-view="tasks">Open Task Inbox</button></div>${taskListHtml(tasks,false)}</article>
     <article class="card glass" style="margin-top:13px"><span class="section-label">FILES</span><h3>Project files</h3>${fileListHtml(files,c,true)}</article>`;
@@ -239,8 +239,8 @@ async function renderEmployerOverview(){
       <article class="card glass"><span class="section-label">CURRENT REQUEST</span><h3>Send a task to your VA</h3>${editable?taskComposerHtml("overview"):'<p class="muted">This portal is View Only.</p>'}</article>
       <article class="card glass"><span class="section-label">CURRENT REQUESTS</span><h3>Tasks you've sent</h3>${taskListHtml(tasks.slice(0,5),false)}</article>
     </div>
-    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">PROJECT INFORMATION</span><h3>Website information & instructions</h3>${editable?officeEditorHtml("projectInfo",sub?.project_information||"","Hosting details, admin access, content notes, feature requests, URLs, and everything your VA needs…","save-project-info","Save Information"):`<div class="read-block rich-output">${richStoredHtml(sub?.project_information||"No project information yet.")}</div>`}</article>
-    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">SHARED NOTES</span><h3>Notes for your VA</h3>${editable?officeEditorHtml("sharedNotes",sub?.shared_notes||"","Share reminders, follow-ups, revisions, deadlines, or anything your VA should remember…","save-shared-notes","Save Notes"):`<div class="read-block rich-output">${richStoredHtml(sub?.shared_notes||"No notes yet.")}</div>`}</article>
+    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">PROJECT INFORMATION</span><h3>Website information & instructions</h3>${editable?`<div class="stack-field"><textarea id="projectInfo" class="soft-textarea" rows="7" placeholder="Hosting details, admin access, content notes, feature requests, URLs, and everything your VA needs…">${esc(sub?.project_information||"")}</textarea><div class="card-actions start"><button class="btn primary" data-action="save-project-info">Save Information</button></div></div>`:`<div class="read-block">${nl2br(sub?.project_information||"No project information yet.")}</div>`}</article>
+    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">SHARED NOTES</span><h3>Notes for your VA</h3>${editable?`<div class="stack-field"><textarea id="sharedNotes" class="soft-textarea" rows="6" placeholder="Share reminders, follow-ups, revisions, deadlines, or anything your VA should remember…">${esc(sub?.shared_notes||"")}</textarea><div class="card-actions start"><button class="btn primary" data-action="save-shared-notes">Save Notes</button></div></div>`:`<div class="read-block">${nl2br(sub?.shared_notes||"No notes yet.")}</div>`}</article>
     <article class="card glass" style="margin-top:13px"><div class="section-head"><div><span class="section-label">FILES</span><h3>Send files to your VA</h3></div>${editable?'<label class="btn primary">+ Upload Files<input id="overviewFiles" type="file" multiple hidden></label>':""}</div>${fileListHtml(files,c,editable)}</article>`;
   setupRichEditors();updateStatusDock();
 }
@@ -259,81 +259,31 @@ function renderEmployerAccount(){setPageTitle("Account");const c=currentClient()
 function taskComposerHtml(prefix){return`<div class="field"><span>Task title</span><input id="${prefix}TaskTitle"></div><div class="field"><span>Instructions</span><div class="rich-wrap"><div class="rich-tools">${[["bold","B"],["italic","I"],["underline","U"],["backColor","HL"],["insertUnorderedList","• List"],["insertOrderedList","1."],["createLink","Link"],["removeFormat","Tx"]].map(([c,l])=>`<button type="button" class="mini-btn" data-rich-cmd="${c}" data-editor="${prefix}TaskDetails">${l}</button>`).join("")}</div><div id="${prefix}TaskDetails" class="rich-editor" contenteditable="true" data-placeholder="Detailed instructions, checklist, links, copy, design requirements..."></div></div></div><div class="form-grid"><div class="field"><span>Priority</span><select id="${prefix}TaskPriority"><option>Normal</option><option>High</option><option>Urgent</option><option>Low</option></select></div><div class="field"><span>Due date</span><input id="${prefix}TaskDue" type="date"></div></div><button class="btn primary full" data-action="send-task" data-prefix="${prefix}" style="margin-top:11px">+ Send Request</button>`}
 function taskListHtml(list,admin=false,editable=false){return list.length?list.map(t=>`<div class="task-card"><div class="task-top"><div style="min-width:0"><h4 class="task-title">${esc(t.task)}</h4><div id="preview-${t.id}" class="task-preview">${sanitizeRich(t.details||"No additional details.")}</div><button class="mini-btn" data-action="toggle-preview" data-id="${t.id}" style="margin-top:7px">See more</button></div>${t.done?'<span class="status complete">Completed</span>':'<span class="status">Open</span>'}</div><div class="meta"><b>${esc(t.priority||"Normal")}</b>${t.due_date?`<b>Due ${fmtDate(t.due_date)}</b>`:""}</div><div class="row-actions" style="margin-top:9px">${admin?`<button class="mini-btn" data-action="view-task" data-id="${t.id}">Open</button><button class="mini-btn" data-action="toggle-task" data-id="${t.id}">${t.done?"Reopen":"Mark Done"}</button>`:editable?`<button class="mini-btn" data-action="edit-employer-task" data-id="${t.id}">Edit</button>`:""}</div></div>`).join(""):'<div class="empty"><strong>No tasks yet</strong></div>'}
 
-function richToolbarHtml(editorId){
-  const tools=[["bold","B"],["italic","I"],["underline","U"],["formatBlock:h3","H3"],["insertUnorderedList","• List"],["insertOrderedList","1. List"],["createLink","Link"],["removeFormat","Clear"]];
-  return tools.map(([c,l])=>`<button type="button" class="mini-btn rich-tool-btn" data-rich-cmd="${c}" data-editor="${editorId}" title="${esc(l)}">${esc(l)}</button>`).join("");
-}
-function officeEditorHtml(id,value,placeholder,action,label){
-  return `<div class="stack-field office-editor-wrap"><div class="rich-wrap office-rich"><div class="rich-tools"><span class="paste-hint">Paste from Word / Office</span>${richToolbarHtml(id)}</div><div id="${id}" class="rich-editor office-editor" contenteditable="true" role="textbox" aria-multiline="true" data-office-editor="true" data-placeholder="${esc(placeholder)}">${richStoredHtml(value)}</div></div><div class="editor-foot"><small>Formatting is kept when possible. Unsafe scripts and Microsoft-only markup are removed automatically.</small><button class="btn primary" data-action="${action}">${esc(label)}</button></div></div>`;
-}
 function setupRichEditors(){
-  $$('[data-rich-cmd]').forEach(b=>b.onclick=()=>{
+  $$("[data-rich-cmd]").forEach(b=>b.onclick=()=>{
     const ed=$(b.dataset.editor);if(!ed)return;ed.focus();
-    const cmd=b.dataset.richCmd;
-    if(cmd==="createLink"){const url=prompt("Enter https:// link");if(url&&/^https?:\/\//i.test(url))document.execCommand("createLink",false,url)}
-    else if(cmd==="backColor")document.execCommand("backColor",false,"#baff3a");
-    else if(cmd.startsWith("formatBlock:"))document.execCommand("formatBlock",false,cmd.split(":")[1]);
-    else document.execCommand(cmd,false,null);
-  });
-  $$('[data-office-editor]').forEach(ed=>{
-    ed.addEventListener('paste',handleOfficePaste);
-    ed.addEventListener('input',()=>{ed.classList.toggle('has-content',!!stripHtml(ed.innerHTML).trim())});
-    ed.classList.toggle('has-content',!!stripHtml(ed.innerHTML).trim());
-  });
+    if(b.dataset.richCmd==="createLink"){const url=prompt("Enter https:// link");if(url&&/^https?:\/\//i.test(url))document.execCommand("createLink",false,url)}
+    else if(b.dataset.richCmd==="backColor")document.execCommand("backColor",false,"#baff3a");
+    else document.execCommand(b.dataset.richCmd,false,null);
+  })
 }
 function stripHtml(h){const d=document.createElement("div");d.innerHTML=h;return d.textContent||""}
 function nl2br(s){return esc(s).replace(/\n/g,"<br>")}
-function richStoredHtml(value){
-  const raw=String(value||"");
-  return /<\/?[a-z][\s\S]*>/i.test(raw)?sanitizeRich(raw):nl2br(raw);
-}
-function safeStyle(styleText=""){
-  const out=[];
-  String(styleText).split(';').forEach(part=>{
-    const [rawKey,...rest]=part.split(':');if(!rawKey||!rest.length)return;
-    const key=rawKey.trim().toLowerCase(),value=rest.join(':').trim();
-    if(key==='text-align'&&/^(left|right|center|justify)$/i.test(value))out.push(`text-align:${value.toLowerCase()}`);
-    if(key==='font-weight'&&/^(bold|[5-9]00)$/i.test(value))out.push('font-weight:700');
-    if(key==='font-style'&&/^italic$/i.test(value))out.push('font-style:italic');
-    if(key==='text-decoration'&&/underline/i.test(value))out.push('text-decoration:underline');
-  });
-  return out.join(';');
-}
 function sanitizeRich(html){
   const doc=new DOMParser().parseFromString(`<div>${html}</div>`,"text/html"),root=doc.body.firstElementChild;
-  const allowed=new Set(["DIV","P","BR","B","STRONG","I","EM","U","S","STRIKE","H1","H2","H3","H4","UL","OL","LI","A","SPAN","BLOCKQUOTE","TABLE","THEAD","TBODY","TFOOT","TR","TH","TD"]);
-  [...root.querySelectorAll('script,style,iframe,object,embed,meta,link,form,input,button,svg,math')].forEach(el=>el.remove());
+  const allowed=new Set(["DIV","P","BR","B","STRONG","I","EM","U","UL","OL","LI","A","SPAN"]);
   [...root.querySelectorAll("*")].forEach(el=>{
     if(!allowed.has(el.tagName)){el.replaceWith(...el.childNodes);return}
     const href=el.tagName==="A"?(el.getAttribute("href")||""):"";
-    const colspan=el.getAttribute('colspan'),rowspan=el.getAttribute('rowspan'),style=safeStyle(el.getAttribute('style')||'');
     [...el.attributes].forEach(a=>el.removeAttribute(a.name));
-    if(style)el.setAttribute('style',style);
-    if(el.tagName==="A"&&/^https?:\/\//i.test(href)){el.setAttribute("href",href);el.setAttribute("target","_blank");el.setAttribute("rel","noopener noreferrer")}
-    if((el.tagName==='TD'||el.tagName==='TH')&&/^\d{1,2}$/.test(colspan||''))el.setAttribute('colspan',colspan);
-    if((el.tagName==='TD'||el.tagName==='TH')&&/^\d{1,2}$/.test(rowspan||''))el.setAttribute('rowspan',rowspan);
+    if(el.tagName==="A"&&/^https?:\/\//i.test(href)){
+      el.setAttribute("href",href);
+      el.setAttribute("target","_blank");
+      el.setAttribute("rel","noopener");
+    }
   });
-  return root.innerHTML
-    .replace(/<!--([\s\S]*?)-->/g,'')
-    .replace(/<span>(\s*)<\/span>/gi,'$1')
-    .replace(/\sclass=("[^"]*"|'[^']*')/gi,'');
+  return root.innerHTML;
 }
-function insertHtmlAtCursor(html){
-  const sel=window.getSelection();if(!sel?.rangeCount)return;
-  const range=sel.getRangeAt(0);range.deleteContents();
-  const frag=range.createContextualFragment(html);const last=frag.lastChild;range.insertNode(frag);
-  if(last){range.setStartAfter(last);range.collapse(true);sel.removeAllRanges();sel.addRange(range)}
-}
-function handleOfficePaste(e){
-  e.preventDefault();
-  const dt=e.clipboardData||window.clipboardData;
-  const html=dt?.getData('text/html')||'';
-  const text=dt?.getData('text/plain')||'';
-  const cleaned=html?sanitizeRich(html):nl2br(text);
-  insertHtmlAtCursor(cleaned||'');
-  e.currentTarget.dispatchEvent(new Event('input',{bubbles:true}));
-}
-
 
 async function sendTask(prefix){
   const c=currentClient(),title=$(`${prefix}TaskTitle`)?.value.trim(),details=sanitizeRich($(`${prefix}TaskDetails`)?.innerHTML||"");
@@ -442,8 +392,8 @@ document.addEventListener("click",async e=>{
     else if(act==="edit-employer-task")await editEmployerTask(id);
     else if(act==="save-employer-task")await saveEmployerTask(id);
     else if(act==="send-task")await sendTask(a.dataset.prefix);
-    else if(act==="save-project-info")await saveSubmission("project_information",sanitizeRich($("projectInfo")?.innerHTML||""));
-    else if(act==="save-shared-notes")await saveSubmission("shared_notes",sanitizeRich($("sharedNotes")?.innerHTML||""));
+    else if(act==="save-project-info")await saveSubmission("project_information",$("projectInfo").value);
+    else if(act==="save-shared-notes")await saveSubmission("shared_notes",$("sharedNotes").value);
     else if(act==="employer-status")await employerStatus(a.dataset.status);
     else if(act==="open-file")await openFile(a.dataset.path);
     else if(act==="delete-file")await deleteFile(a.dataset.path);
