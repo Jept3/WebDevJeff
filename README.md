@@ -92,3 +92,19 @@ Then hard-refresh after GitHub Pages deploys.
 ## Security note
 
 Employer rich-text task HTML is sanitized before being displayed in either Employer or Admin views. Admin cannot edit Employer task content at the database layer; Admin can only mark tasks seen/completed/reopened.
+
+
+## Employer responsive layout fix
+
+This build fixes the Employer Portal becoming squeezed into narrow side-by-side columns.
+
+Changes:
+- Employer mode no longer inherits the Admin sidebar grid.
+- Employer main content always uses the full available width.
+- Overview switches to one column at laptop/tablet widths.
+- Header and Sign out button no longer squeeze the page.
+- Employer tabs scroll horizontally on smaller screens.
+- Forms, rich-text editor, task cards, files, and status cards cannot force horizontal overflow.
+- Strong phone and ultra-narrow safeguards added.
+
+No SQL or Edge Function change is required for this layout fix.

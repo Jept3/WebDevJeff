@@ -85,6 +85,7 @@ function configureRoleUI(){
   $("adminSidebar").classList.toggle("hidden",!roleIsAdmin());
   $("employerTabs").classList.toggle("hidden",roleIsAdmin());
   document.body.classList.toggle("employer",!roleIsAdmin());
+  document.documentElement.classList.toggle("employer-mode",!roleIsAdmin());
   updateStatusDock();
 }
 
