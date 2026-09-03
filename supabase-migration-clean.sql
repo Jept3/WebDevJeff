@@ -296,6 +296,37 @@ create trigger audit_tasks after insert or update or delete on public.client_tas
 create trigger audit_time after insert or update or delete on public.time_entries for each row execute procedure public.audit_row_change();
 create trigger audit_invoices after insert or update or delete on public.invoices for each row execute procedure public.audit_row_change();
 
+-- ---------- reliable employer task delete ----------
+-- Jeffdesign101 v2.6 - reliable Employer request delete
+-- Safe to run on top of your existing schema. Does NOT delete or recreate tables/data.
+
+create or replace function public.delete_own_task(target_task uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  deleted_count integer := 0;
+begin
+  delete from public.client_tasks t
+  using public.clients c
+  where t.id = target_task
+    and c.id = t.client_id
+    and t.user_id = auth.uid()
+    and c.auth_user_id = auth.uid()
+    and c.portal_permission = 'edit'
+    and c.deleted_at is null;
+
+  get diagnostics deleted_count = row_count;
+  return deleted_count > 0;
+end
+$$;
+
+revoke all on function public.delete_own_task(uuid) from public;
+grant execute on function public.delete_own_task(uuid) to authenticated;
+
+
 -- Grants
 grant select,insert,update,delete on public.clients to authenticated;
 grant select,insert,update on public.client_submissions to authenticated;

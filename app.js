@@ -1,4 +1,4 @@
-const BUILD="v2.2-glass";
+const BUILD="v2.6-task-rich-delete";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -159,8 +159,8 @@ async function renderClientDetail(id){
     <article class="card glass" style="margin-top:10px"><div class="section-head"><div><span class="section-label">EMPLOYER / WEBSITE PROJECT</span><h3>${esc(c.name)}</h3><p class="muted">${esc(c.company||"")}</p></div><div>${statusPill(c.status)} <button class="mini-btn" data-action="edit-client" data-id="${c.id}">Edit</button></div></div>
     <div class="info-grid"><div class="info"><span>Project</span><strong>${esc(c.project_type||"—")}</strong></div><div class="info"><span>Priority</span><strong>${esc(c.priority||"Normal")}</strong></div><div class="info"><span>Started</span><strong>${fmtDate(c.start_date)}</strong></div><div class="info"><span>Deadline</span><strong>${fmtDate(c.deadline)}</strong></div></div></article>
     <div class="grid2">
-      <article class="card glass"><span class="section-label">EMPLOYER INFORMATION</span><h3>Project information</h3><div>${nl2br(sub?.project_information||"No employer project information yet.")}</div></article>
-      <article class="card glass"><span class="section-label">SHARED NOTES</span><h3>Notes from employer</h3><div>${nl2br(sub?.shared_notes||"No shared notes yet.")}</div></article>
+      <article class="card glass"><span class="section-label">EMPLOYER INFORMATION</span><h3>Project information</h3><div>${richStoredHtml(sub?.project_information||"No employer project information yet.")}</div></article>
+      <article class="card glass"><span class="section-label">SHARED NOTES</span><h3>Notes from employer</h3><div>${richStoredHtml(sub?.shared_notes||"No shared notes yet.")}</div></article>
     </div>
     <article class="card glass" style="margin-top:13px"><div class="section-head"><div><span class="section-label">EMPLOYER TASKS</span><h3>Read-only requests</h3></div><button class="mini-btn" data-admin-view="tasks">Open Task Inbox</button></div>${taskListHtml(tasks,false)}</article>
     <article class="card glass" style="margin-top:13px"><span class="section-label">FILES</span><h3>Project files</h3>${fileListHtml(files,c,true)}</article>`;
@@ -175,7 +175,7 @@ function renderTaskInbox(){
 function renderTaskInboxRows(){
   const f=$("taskFilter")?.value||"all";
   const list=state.tasks.filter(t=>f==="all"||f==="unread"&&!t.admin_seen_at||f==="open"&&!t.done||f==="done"&&t.done);
-  $("taskInboxRows").innerHTML=list.length?list.map(t=>`<div class="row-card"><div><strong>${esc(t.task)}</strong><small>${esc(stripHtml(t.details||"")).slice(0,130)}${stripHtml(t.details||"").length>130?"…":""}</small></div><div><strong>${esc(clientName(t.client_id))}</strong><small>${esc(t.priority||"Normal")}</small></div><div>${t.done?'<span class="status complete">Completed</span>':'<span class="status">Open</span>'}${!t.admin_seen_at?' <span class="status">New</span>':""}</div><div class="row-actions"><button class="mini-btn" data-action="view-task" data-id="${t.id}">Open</button><button class="mini-btn" data-action="toggle-task" data-id="${t.id}">${t.done?"Reopen":"Mark Done"}</button></div></div>`).join(""):'<div class="empty"><strong>No tasks</strong></div>';
+  $("taskInboxRows").innerHTML=list.length?list.map(t=>`<div class="row-card"><div><strong class="rich-task-title">${richTitleHtml(t.task)}</strong><small>${esc(stripHtml(t.details||"")).slice(0,130)}${stripHtml(t.details||"").length>130?"…":""}</small></div><div><strong>${esc(clientName(t.client_id))}</strong><small>${esc(t.priority||"Normal")}</small></div><div>${t.done?'<span class="status complete">Completed</span>':'<span class="status">Open</span>'}${!t.admin_seen_at?' <span class="status">New</span>':""}</div><div class="row-actions"><button class="mini-btn" data-action="view-task" data-id="${t.id}">Open</button><button class="mini-btn" data-action="toggle-task" data-id="${t.id}">${t.done?"Reopen":"Mark Done"}</button></div></div>`).join(""):'<div class="empty"><strong>No tasks</strong></div>';
 }
 
 function renderTimePage(){
@@ -237,10 +237,10 @@ async function renderEmployerOverview(){
     <div class="stats"><div class="stat glass"><span>Open requests</span><strong>${tasks.filter(t=>!t.done).length}</strong></div><div class="stat glass"><span>Completed</span><strong>${tasks.filter(t=>t.done).length}</strong></div><div class="stat glass"><span>Incoming invoices</span><strong>${state.invoices.filter(i=>i.client_id===c.id&&i.status==="pending").length}</strong></div><div class="stat glass"><span>Amount due</span><strong>${money(state.invoices.filter(i=>i.client_id===c.id&&i.status==="pending").reduce((s,i)=>s+Number(i.total||0),0))}</strong></div></div>
     <div class="grid2">
       <article class="card glass"><span class="section-label">CURRENT REQUEST</span><h3>Send a task to your VA</h3>${editable?taskComposerHtml("overview"):'<p class="muted">This portal is View Only.</p>'}</article>
-      <article class="card glass"><span class="section-label">CURRENT REQUESTS</span><h3>Tasks you've sent</h3>${taskListHtml(tasks.slice(0,5),false)}</article>
+      <article class="card glass"><span class="section-label">CURRENT REQUESTS</span><h3>Tasks you've sent</h3>${taskListHtml(tasks.slice(0,5),false,editable)}</article>
     </div>
-    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">PROJECT INFORMATION</span><h3>Website information & instructions</h3>${editable?`<div class="stack-field"><textarea id="projectInfo" class="soft-textarea" rows="7" placeholder="Hosting details, admin access, content notes, feature requests, URLs, and everything your VA needs…">${esc(sub?.project_information||"")}</textarea><div class="card-actions start"><button class="btn primary" data-action="save-project-info">Save Information</button></div></div>`:`<div class="read-block">${nl2br(sub?.project_information||"No project information yet.")}</div>`}</article>
-    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">SHARED NOTES</span><h3>Notes for your VA</h3>${editable?`<div class="stack-field"><textarea id="sharedNotes" class="soft-textarea" rows="6" placeholder="Share reminders, follow-ups, revisions, deadlines, or anything your VA should remember…">${esc(sub?.shared_notes||"")}</textarea><div class="card-actions start"><button class="btn primary" data-action="save-shared-notes">Save Notes</button></div></div>`:`<div class="read-block">${nl2br(sub?.shared_notes||"No notes yet.")}</div>`}</article>
+    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">PROJECT INFORMATION</span><h3>Website information & instructions</h3>${editable?officeEditorHtml("projectInfo",sub?.project_information||"","Hosting details, admin access, content notes, feature requests, URLs, and everything your VA needs…","save-project-info","Save Information"):`<div class="read-block rich-output">${richStoredHtml(sub?.project_information||"No project information yet.")}</div>`}</article>
+    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">SHARED NOTES</span><h3>Notes for your VA</h3>${editable?officeEditorHtml("sharedNotes",sub?.shared_notes||"","Share reminders, follow-ups, revisions, deadlines, or anything your VA should remember…","save-shared-notes","Save Notes"):`<div class="read-block rich-output">${richStoredHtml(sub?.shared_notes||"No notes yet.")}</div>`}</article>
     <article class="card glass" style="margin-top:13px"><div class="section-head"><div><span class="section-label">FILES</span><h3>Send files to your VA</h3></div>${editable?'<label class="btn primary">+ Upload Files<input id="overviewFiles" type="file" multiple hidden></label>':""}</div>${fileListHtml(files,c,editable)}</article>`;
   setupRichEditors();updateStatusDock();
 }
@@ -256,46 +256,149 @@ function renderEmployerWork(){
 function renderEmployerInvoices(){setPageTitle("Invoices");const c=currentClient(),list=state.invoices.filter(i=>i.client_id===c?.id);$("view").innerHTML=`<div class="stats"><div class="stat glass"><span>Incoming</span><strong>${list.filter(i=>i.status==="pending").length}</strong></div><div class="stat glass"><span>Paid</span><strong>${list.filter(i=>i.status==="paid").length}</strong></div><div class="stat glass"><span>Amount due</span><strong>${money(list.filter(i=>i.status==="pending").reduce((s,i)=>s+Number(i.total||0),0))}</strong></div><div class="stat glass"><span>Total paid</span><strong>${money(list.filter(i=>i.status==="paid").reduce((s,i)=>s+Number(i.total||0),0))}</strong></div></div><article class="card glass" style="margin-top:13px"><span class="section-label">BILLING HISTORY</span><h3>Invoices</h3>${invoiceRows(list,false)}</article>`}
 function renderEmployerAccount(){setPageTitle("Account");const c=currentClient();$("view").innerHTML=`<article class="card glass" style="max-width:720px;margin:auto"><span class="section-label">ACCOUNT</span><h3>Employer Login</h3><div class="info-grid"><div class="info"><span>Username</span><strong>${esc(c?.client_username||"—")}</strong></div><div class="info"><span>Access</span><strong>${c?.portal_permission==="view"?"View Only":"Can Edit"}</strong></div></div><div class="field"><span>New password</span><input id="newEmployerPassword" type="password" minlength="8"></div><button class="btn primary" data-action="change-password" style="margin-top:12px">Change Password</button></article>`}
 
-function taskComposerHtml(prefix){return`<div class="field"><span>Task title</span><input id="${prefix}TaskTitle"></div><div class="field"><span>Instructions</span><div class="rich-wrap"><div class="rich-tools">${[["bold","B"],["italic","I"],["underline","U"],["backColor","HL"],["insertUnorderedList","• List"],["insertOrderedList","1."],["createLink","Link"],["removeFormat","Tx"]].map(([c,l])=>`<button type="button" class="mini-btn" data-rich-cmd="${c}" data-editor="${prefix}TaskDetails">${l}</button>`).join("")}</div><div id="${prefix}TaskDetails" class="rich-editor" contenteditable="true" data-placeholder="Detailed instructions, checklist, links, copy, design requirements..."></div></div></div><div class="form-grid"><div class="field"><span>Priority</span><select id="${prefix}TaskPriority"><option>Normal</option><option>High</option><option>Urgent</option><option>Low</option></select></div><div class="field"><span>Due date</span><input id="${prefix}TaskDue" type="date"></div></div><button class="btn primary full" data-action="send-task" data-prefix="${prefix}" style="margin-top:11px">+ Send Request</button>`}
-function taskListHtml(list,admin=false,editable=false){return list.length?list.map(t=>`<div class="task-card"><div class="task-top"><div style="min-width:0"><h4 class="task-title">${esc(t.task)}</h4><div id="preview-${t.id}" class="task-preview">${sanitizeRich(t.details||"No additional details.")}</div><button class="mini-btn" data-action="toggle-preview" data-id="${t.id}" style="margin-top:7px">See more</button></div>${t.done?'<span class="status complete">Completed</span>':'<span class="status">Open</span>'}</div><div class="meta"><b>${esc(t.priority||"Normal")}</b>${t.due_date?`<b>Due ${fmtDate(t.due_date)}</b>`:""}</div><div class="row-actions" style="margin-top:9px">${admin?`<button class="mini-btn" data-action="view-task" data-id="${t.id}">Open</button><button class="mini-btn" data-action="toggle-task" data-id="${t.id}">${t.done?"Reopen":"Mark Done"}</button>`:editable?`<button class="mini-btn" data-action="edit-employer-task" data-id="${t.id}">Edit</button>`:""}</div></div>`).join(""):'<div class="empty"><strong>No tasks yet</strong></div>'}
+function taskComposerHtml(prefix){return`<div class="field"><span>Task title</span><div class="rich-wrap rich-title-wrap"><div class="rich-tools compact">${[["bold","B"],["italic","I"],["underline","U"],["removeFormat","Tx"]].map(([c,l])=>`<button type="button" class="mini-btn" data-rich-cmd="${c}" data-editor="${prefix}TaskTitle">${l}</button>`).join("")}</div><div id="${prefix}TaskTitle" class="rich-editor rich-title-editor" contenteditable="true" data-inline-rich="1" data-placeholder="Task title…"></div></div></div><div class="field"><span>Instructions</span><div class="rich-wrap"><div class="rich-tools">${[["bold","B"],["italic","I"],["underline","U"],["backColor","HL"],["insertUnorderedList","• List"],["insertOrderedList","1."],["createLink","Link"],["removeFormat","Tx"]].map(([c,l])=>`<button type="button" class="mini-btn" data-rich-cmd="${c}" data-editor="${prefix}TaskDetails">${l}</button>`).join("")}</div><div id="${prefix}TaskDetails" class="rich-editor" contenteditable="true" data-placeholder="Detailed instructions, checklist, links, copy, design requirements..."></div></div></div><div class="form-grid"><div class="field"><span>Priority</span><select id="${prefix}TaskPriority"><option>Normal</option><option>High</option><option>Urgent</option><option>Low</option></select></div><div class="field"><span>Due date</span><input id="${prefix}TaskDue" type="date"></div></div><button class="btn primary full" data-action="send-task" data-prefix="${prefix}" style="margin-top:11px">+ Send Request</button>`}
+function taskListHtml(list,admin=false,editable=false){return list.length?list.map(t=>`<div class="task-card"><div class="task-top"><div style="min-width:0"><h4 class="task-title rich-task-title">${richTitleHtml(t.task)}</h4><div id="preview-${t.id}" class="task-preview">${sanitizeRich(t.details||"No additional details.")}</div><button class="mini-btn" data-action="toggle-preview" data-id="${t.id}" style="margin-top:7px">See more</button></div>${t.done?'<span class="status complete">Completed</span>':'<span class="status">Open</span>'}</div><div class="meta"><b>${esc(t.priority||"Normal")}</b>${t.due_date?`<b>Due ${fmtDate(t.due_date)}</b>`:""}</div><div class="row-actions" style="margin-top:9px">${admin?`<button class="mini-btn" data-action="view-task" data-id="${t.id}">Open</button><button class="mini-btn" data-action="toggle-task" data-id="${t.id}">${t.done?"Reopen":"Mark Done"}</button>`:editable?`<button class="mini-btn" data-action="edit-employer-task" data-id="${t.id}">Edit</button><button class="mini-btn danger" data-action="delete-employer-task" data-id="${t.id}">Delete</button>`:""}</div></div>`).join(""):'<div class="empty"><strong>No tasks yet</strong></div>'}
 
+function richToolbarHtml(editorId){
+  const tools=[["bold","B"],["italic","I"],["underline","U"],["formatBlock:h3","H3"],["insertUnorderedList","• List"],["insertOrderedList","1. List"],["createLink","Link"],["removeFormat","Clear"]];
+  return tools.map(([c,l])=>`<button type="button" class="mini-btn rich-tool-btn" data-rich-cmd="${c}" data-editor="${editorId}" title="${esc(l)}">${esc(l)}</button>`).join("");
+}
+function officeEditorHtml(id,value,placeholder,action,label){
+  return `<div class="stack-field office-editor-wrap"><div class="rich-wrap office-rich"><div class="rich-tools"><span class="paste-hint">Paste from Word / Office</span>${richToolbarHtml(id)}</div><div id="${id}" class="rich-editor office-editor" contenteditable="true" role="textbox" aria-multiline="true" data-office-editor="true" data-placeholder="${esc(placeholder)}">${richStoredHtml(value)}</div></div><div class="editor-foot"><small>Formatting is kept when possible. Unsafe scripts and Microsoft-only markup are removed automatically.</small><button class="btn primary" data-action="${action}">${esc(label)}</button></div></div>`;
+}
 function setupRichEditors(){
-  $$("[data-rich-cmd]").forEach(b=>b.onclick=()=>{
+  $$('[data-rich-cmd]').forEach(b=>b.onclick=()=>{
     const ed=$(b.dataset.editor);if(!ed)return;ed.focus();
-    if(b.dataset.richCmd==="createLink"){const url=prompt("Enter https:// link");if(url&&/^https?:\/\//i.test(url))document.execCommand("createLink",false,url)}
-    else if(b.dataset.richCmd==="backColor")document.execCommand("backColor",false,"#baff3a");
-    else document.execCommand(b.dataset.richCmd,false,null);
-  })
+    const cmd=b.dataset.richCmd;
+    if(cmd==="createLink"){const url=prompt("Enter https:// link");if(url&&/^https?:\/\//i.test(url))document.execCommand("createLink",false,url)}
+    else if(cmd==="backColor")document.execCommand("backColor",false,"#baff3a");
+    else if(cmd.startsWith("formatBlock:"))document.execCommand("formatBlock",false,cmd.split(":")[1]);
+    else document.execCommand(cmd,false,null);
+  });
+  $$('.rich-editor[contenteditable="true"]').forEach(ed=>{
+    if(ed.dataset.pasteReady!=="1"){
+      ed.addEventListener('paste',handleOfficePaste);
+      ed.addEventListener('input',()=>{ed.classList.toggle('has-content',!!stripHtml(ed.innerHTML).trim())});
+      ed.dataset.pasteReady="1";
+    }
+    ed.classList.toggle('has-content',!!stripHtml(ed.innerHTML).trim());
+  });
 }
 function stripHtml(h){const d=document.createElement("div");d.innerHTML=h;return d.textContent||""}
 function nl2br(s){return esc(s).replace(/\n/g,"<br>")}
+function richStoredHtml(value){
+  const raw=String(value||"");
+  return /<\/?[a-z][\s\S]*>/i.test(raw)?sanitizeRich(raw):nl2br(raw);
+}
+function safeStyle(styleText=""){
+  const out=[];
+  String(styleText).split(';').forEach(part=>{
+    const [rawKey,...rest]=part.split(':');if(!rawKey||!rest.length)return;
+    const key=rawKey.trim().toLowerCase(),value=rest.join(':').trim();
+    if(key==='text-align'&&/^(left|right|center|justify)$/i.test(value))out.push(`text-align:${value.toLowerCase()}`);
+    if(key==='font-weight'&&/^(bold|[5-9]00)$/i.test(value))out.push('font-weight:700');
+    if(key==='font-style'&&/^italic$/i.test(value))out.push('font-style:italic');
+    if(key==='text-decoration'&&/underline/i.test(value))out.push('text-decoration:underline');
+  });
+  return out.join(';');
+}
 function sanitizeRich(html){
   const doc=new DOMParser().parseFromString(`<div>${html}</div>`,"text/html"),root=doc.body.firstElementChild;
-  const allowed=new Set(["DIV","P","BR","B","STRONG","I","EM","U","UL","OL","LI","A","SPAN"]);
+  const allowed=new Set(["DIV","P","BR","B","STRONG","I","EM","U","S","STRIKE","H1","H2","H3","H4","UL","OL","LI","A","SPAN","BLOCKQUOTE","TABLE","THEAD","TBODY","TFOOT","TR","TH","TD"]);
+  [...root.querySelectorAll('script,style,iframe,object,embed,meta,link,form,input,button,svg,math')].forEach(el=>el.remove());
   [...root.querySelectorAll("*")].forEach(el=>{
     if(!allowed.has(el.tagName)){el.replaceWith(...el.childNodes);return}
     const href=el.tagName==="A"?(el.getAttribute("href")||""):"";
+    const colspan=el.getAttribute('colspan'),rowspan=el.getAttribute('rowspan'),style=safeStyle(el.getAttribute('style')||'');
     [...el.attributes].forEach(a=>el.removeAttribute(a.name));
-    if(el.tagName==="A"&&/^https?:\/\//i.test(href)){
-      el.setAttribute("href",href);
-      el.setAttribute("target","_blank");
-      el.setAttribute("rel","noopener");
-    }
+    if(style)el.setAttribute('style',style);
+    if(el.tagName==="A"&&/^https?:\/\//i.test(href)){el.setAttribute("href",href);el.setAttribute("target","_blank");el.setAttribute("rel","noopener noreferrer")}
+    if((el.tagName==='TD'||el.tagName==='TH')&&/^\d{1,2}$/.test(colspan||''))el.setAttribute('colspan',colspan);
+    if((el.tagName==='TD'||el.tagName==='TH')&&/^\d{1,2}$/.test(rowspan||''))el.setAttribute('rowspan',rowspan);
   });
-  return root.innerHTML;
+  return root.innerHTML
+    .replace(/<!--([\s\S]*?)-->/g,'')
+    .replace(/<span>(\s*)<\/span>/gi,'$1')
+    .replace(/\sclass=("[^"]*"|'[^']*')/gi,'');
+}
+function sanitizeInlineRich(html){
+  const doc=new DOMParser().parseFromString(`<div>${html||""}</div>`,"text/html"),root=doc.body.firstElementChild;
+  const allowed=new Set(["B","STRONG","I","EM","U","S","STRIKE","SPAN","BR"]);
+  [...root.querySelectorAll('script,style,iframe,object,embed,meta,link,form,input,button,svg,math,a,img,table,ul,ol,li,p,div,h1,h2,h3,h4,blockquote')].forEach(el=>{
+    if(["P","DIV","H1","H2","H3","H4","BLOCKQUOTE","LI"].includes(el.tagName))el.replaceWith(...el.childNodes,doc.createTextNode(" "));
+    else if(!allowed.has(el.tagName))el.replaceWith(...el.childNodes);
+  });
+  [...root.querySelectorAll("*")].forEach(el=>{
+    if(!allowed.has(el.tagName)){el.replaceWith(...el.childNodes);return}
+    const style=safeStyle(el.getAttribute("style")||"");
+    [...el.attributes].forEach(a=>el.removeAttribute(a.name));
+    if(style)el.setAttribute("style",style);
+  });
+  return root.innerHTML.replace(/(?:<br\s*\/?>\s*){2,}/gi,"<br>").trim();
+}
+function richTitleHtml(value){
+  const raw=String(value||"");
+  return /<\/?[a-z][\s\S]*>/i.test(raw)?sanitizeInlineRich(raw):esc(raw);
+}
+function richTitleText(value){return stripHtml(String(value||"")).replace(/\s+/g," ").trim()}
+function insertHtmlAtCursor(html,editor){
+  const target=editor||document.activeElement;
+  if(!target)return false;
+  try{
+    const sel=window.getSelection();
+    if(sel?.rangeCount){
+      const range=sel.getRangeAt(0),node=range.commonAncestorContainer;
+      if(target===node||target.contains(node.nodeType===1?node:node.parentNode)){
+        range.deleteContents();
+        const frag=range.createContextualFragment(html),last=frag.lastChild;
+        range.insertNode(frag);
+        if(last){range.setStartAfter(last);range.collapse(true);sel.removeAllRanges();sel.addRange(range)}
+        return true;
+      }
+    }
+  }catch(err){console.warn("Paste cursor insertion fallback",err)}
+  try{
+    target.focus();
+    if(document.queryCommandSupported?.("insertHTML")&&document.execCommand("insertHTML",false,html))return true;
+  }catch(err){console.warn("Paste execCommand fallback",err)}
+  try{target.insertAdjacentHTML("beforeend",html);return true}catch{return false}
+}
+function cleanEditorAfterNativePaste(editor){
+  requestAnimationFrame(()=>{
+    if(!editor?.isConnected)return;
+    const safe=editor.dataset.inlineRich?sanitizeInlineRich(editor.innerHTML||""):sanitizeRich(editor.innerHTML||"");
+    if(editor.innerHTML!==safe)editor.innerHTML=safe;
+    editor.classList.toggle("has-content",!!stripHtml(editor.innerHTML).trim());
+    editor.dispatchEvent(new Event("input",{bubbles:true}));
+  });
+}
+function handleOfficePaste(e){
+  const editor=e.currentTarget;
+  const dt=e.clipboardData||window.clipboardData;
+  // Safari/iOS/PWA can expose the paste event without readable clipboard data.
+  // In that case DO NOT block native paste; sanitize immediately afterwards.
+  if(!dt){cleanEditorAfterNativePaste(editor);return}
+  const html=dt.getData?.("text/html")||"";
+  const text=dt.getData?.("text/plain")||"";
+  if(!html&&!text){cleanEditorAfterNativePaste(editor);return}
+  const cleaned=editor.dataset.inlineRich?(html?sanitizeInlineRich(html):esc(text.replace(/\s+/g," "))):(html?sanitizeRich(html):nl2br(text));
+  if(!cleaned){cleanEditorAfterNativePaste(editor);return}
+  e.preventDefault();
+  if(!insertHtmlAtCursor(cleaned,editor)){
+    // Last-resort fallback: preserve user data instead of swallowing the paste.
+    editor.insertAdjacentHTML("beforeend",cleaned);
+  }
+  editor.classList.toggle("has-content",!!stripHtml(editor.innerHTML).trim());
+  editor.dispatchEvent(new Event("input",{bubbles:true}));
 }
 
-async function sendTask(prefix){
-  const c=currentClient(),title=$(`${prefix}TaskTitle`)?.value.trim(),details=sanitizeRich($(`${prefix}TaskDetails`)?.innerHTML||"");
-  if(!c||!title)return toast("Add a task title");
-  const {error}=await state.sb.from("client_tasks").insert({client_id:c.id,user_id:state.session.user.id,task:title,details,priority:$(`${prefix}TaskPriority`).value,due_date:$(`${prefix}TaskDue`).value||null});
-  if(error)return toast(error.message);await loadTasks();toast("Task sent");renderEmployer(state.employerView)
-}
+
+async function sendTask(prefix){const c=currentClient(),titleEl=$(`${prefix}TaskTitle`),detailsEl=$(`${prefix}TaskDetails`),task=sanitizeInlineRich(titleEl?.innerHTML||""),details=sanitizeRich(detailsEl?.innerHTML||"");if(!c||!richTitleText(task))return toast("Task title is required");const {error}=await state.sb.from("client_tasks").insert({client_id:c.id,user_id:state.session.user.id,task,details,priority:$(`${prefix}TaskPriority`).value,due_date:$(`${prefix}TaskDue`).value||null,done:false});if(error)return toast(error.message);await loadTasks();toast("Task sent");renderEmployer(state.employerView)}
 
 async function viewTask(id){
   const t=state.tasks.find(x=>x.id===id);if(!t)return;
   if(roleIsAdmin()&&!t.admin_seen_at){await state.sb.from("client_tasks").update({admin_seen_at:new Date().toISOString()}).eq("id",id);t.admin_seen_at=new Date().toISOString()}
-  $("taskModalTitle").textContent=t.task;
+  $("taskModalTitle").innerHTML=richTitleHtml(t.task);
   $("taskModalBody").innerHTML=`<div class="info-grid"><div class="info"><span>Employer</span><strong>${esc(clientName(t.client_id))}</strong></div><div class="info"><span>Priority</span><strong>${esc(t.priority||"Normal")}</strong></div><div class="info"><span>Due</span><strong>${fmtDate(t.due_date)}</strong></div><div class="info"><span>Status</span><strong>${t.done?"Completed":"Open"}</strong></div></div><div class="card" style="margin-top:12px"><h3>Instructions</h3>${sanitizeRich(t.details||"No instructions.")}</div>${roleIsAdmin()?`<div class="modal-actions"><button class="btn primary" data-action="toggle-task" data-id="${t.id}">${t.done?"Reopen Task":"Mark Completed"}</button></div>`:""}`;
   openModal("taskModal")
 }
@@ -304,9 +407,30 @@ async function toggleTask(id){const t=state.tasks.find(x=>x.id===id);if(!t)retur
 async function editEmployerTask(id){
   const t=state.tasks.find(x=>x.id===id);if(!t)return;
   $("taskModalTitle").textContent="Edit Task";
-  $("taskModalBody").innerHTML=`<div class="field"><span>Title</span><input id="editTaskTitle" value="${esc(t.task)}"></div><div class="field"><span>Instructions</span><textarea id="editTaskDetails" rows="8">${esc(stripHtml(t.details||""))}</textarea></div><div class="form-grid"><div class="field"><span>Priority</span><select id="editTaskPriority">${["Normal","High","Urgent","Low"].map(p=>`<option ${p===(t.priority||"Normal")?"selected":""}>${p}</option>`).join("")}</select></div><div class="field"><span>Due</span><input id="editTaskDue" type="date" value="${esc(t.due_date||"")}"></div></div><div class="modal-actions"><button class="btn primary" data-action="save-employer-task" data-id="${t.id}">Save Changes</button></div>`;openModal("taskModal")
+  $("taskModalBody").innerHTML=`<div class="field"><span>Title</span><div class="rich-wrap rich-title-wrap"><div class="rich-tools compact">${[["bold","B"],["italic","I"],["underline","U"],["removeFormat","Tx"]].map(([c,l])=>`<button type="button" class="mini-btn" data-rich-cmd="${c}" data-editor="editTaskTitle">${l}</button>`).join("")}</div><div id="editTaskTitle" class="rich-editor rich-title-editor" contenteditable="true" data-inline-rich="1" data-placeholder="Task title…">${richTitleHtml(t.task)}</div></div></div><div class="field"><span>Instructions</span><div class="rich-wrap"><div class="rich-tools">${[["bold","B"],["italic","I"],["underline","U"],["backColor","HL"],["insertUnorderedList","• List"],["insertOrderedList","1."],["createLink","Link"],["removeFormat","Tx"]].map(([c,l])=>`<button type="button" class="mini-btn" data-rich-cmd="${c}" data-editor="editTaskDetails">${l}</button>`).join("")}</div><div id="editTaskDetails" class="rich-editor" contenteditable="true" data-placeholder="Detailed instructions…">${richStoredHtml(t.details||"")}</div></div></div><div class="form-grid"><div class="field"><span>Priority</span><select id="editTaskPriority">${["Normal","High","Urgent","Low"].map(p=>`<option ${p===(t.priority||"Normal")?"selected":""}>${p}</option>`).join("")}</select></div><div class="field"><span>Due</span><input id="editTaskDue" type="date" value="${esc(t.due_date||"")}"></div></div><div class="modal-actions"><button class="btn primary" data-action="save-employer-task" data-id="${t.id}">Save Changes</button></div>`;openModal("taskModal");setupRichEditors()
 }
-async function saveEmployerTask(id){const {error}=await state.sb.from("client_tasks").update({task:$("editTaskTitle").value.trim(),details:nl2br($("editTaskDetails").value),priority:$("editTaskPriority").value,due_date:$("editTaskDue").value||null,updated_at:new Date().toISOString()}).eq("id",id);if(error)return toast(error.message);await loadTasks();closeModal("taskModal");renderEmployer("tasks")}
+async function saveEmployerTask(id){const titleEl=$("editTaskTitle"),detailsEl=$("editTaskDetails"),task=sanitizeInlineRich(titleEl?.innerHTML||"");if(!richTitleText(task))return toast("Task title is required");const {error}=await state.sb.from("client_tasks").update({task,details:sanitizeRich(detailsEl?.innerHTML||""),priority:$("editTaskPriority").value,due_date:$("editTaskDue").value||null,updated_at:new Date().toISOString()}).eq("id",id);if(error)return toast(error.message);await loadTasks();closeModal("taskModal");renderEmployer("tasks")}
+
+async function deleteEmployerTask(id){
+  const t=state.tasks.find(x=>x.id===id),c=currentClient();
+  if(!t||!c)return toast("Request not found");
+  if(t.client_id!==c.id)return toast("You can only delete requests from this project");
+  if(c.portal_permission==="view")return toast("This portal is View Only");
+  if(!confirm(`Delete request “${richTitleText(t.task)||"Untitled"}”? This cannot be undone.`))return;
+  let deleted=false,lastError=null;
+  const rpc=await state.sb.rpc("delete_own_task",{target_task:id});
+  if(!rpc.error)deleted=rpc.data===true;
+  else if(!/function .*delete_own_task/i.test(rpc.error.message||"")&&!/PGRST202/i.test(rpc.error.code||""))lastError=rpc.error;
+  if(!deleted&&!lastError){
+    const direct=await state.sb.from("client_tasks").delete().eq("id",id).eq("client_id",c.id).select("id");
+    if(direct.error)lastError=direct.error;else deleted=(direct.data||[]).some(x=>x.id===id);
+  }
+  if(lastError)return toast(lastError.message||"Delete failed");
+  if(!deleted)return toast("Delete was blocked by database permissions. Run the v2.6 SQL patch included in this build.");
+  await loadTasks();
+  toast("Request deleted");
+  renderEmployer(state.employerView);
+}
 
 async function getSubmission(clientId){const {data,error}=await state.sb.from("client_submissions").select("*").eq("client_id",clientId).maybeSingle();if(error)throw error;return data}
 async function saveSubmission(field,value){const c=currentClient(),old=await getSubmission(c.id);const payload={client_id:c.id,user_id:state.session.user.id,info:old?.info||"",info_html:old?.info_html||"",project_information:old?.project_information||"",shared_notes:old?.shared_notes||""};payload[field]=value;const {error}=await state.sb.from("client_submissions").upsert(payload,{onConflict:"client_id"});if(error)return toast(error.message);toast("Saved")}
@@ -391,9 +515,10 @@ document.addEventListener("click",async e=>{
     else if(act==="toggle-preview"){const p=$(`preview-${id}`),ex=p.classList.toggle("expanded");a.textContent=ex?"See less":"See more"}
     else if(act==="edit-employer-task")await editEmployerTask(id);
     else if(act==="save-employer-task")await saveEmployerTask(id);
+    else if(act==="delete-employer-task")await deleteEmployerTask(id);
     else if(act==="send-task")await sendTask(a.dataset.prefix);
-    else if(act==="save-project-info")await saveSubmission("project_information",$("projectInfo").value);
-    else if(act==="save-shared-notes")await saveSubmission("shared_notes",$("sharedNotes").value);
+    else if(act==="save-project-info")await saveSubmission("project_information",sanitizeRich($("projectInfo")?.innerHTML||""));
+    else if(act==="save-shared-notes")await saveSubmission("shared_notes",sanitizeRich($("sharedNotes")?.innerHTML||""));
     else if(act==="employer-status")await employerStatus(a.dataset.status);
     else if(act==="open-file")await openFile(a.dataset.path);
     else if(act==="delete-file")await deleteFile(a.dataset.path);
@@ -478,3 +603,7 @@ installViewMotion();
 
 console.info("Jeffdesign101",BUILD);
 init();
+
+// v2.6: keep rich task titles compact and safe.
+document.addEventListener("keydown",e=>{const ed=e.target.closest?.('[data-inline-rich="1"]');if(ed&&e.key==="Enter"){e.preventDefault();document.execCommand("insertText",false," ")}});
+document.addEventListener("input",e=>{const ed=e.target.closest?.('[data-inline-rich="1"]');if(ed&&ed.innerHTML.length>1000)ed.innerHTML=sanitizeInlineRich(ed.innerHTML).slice(0,1000)});

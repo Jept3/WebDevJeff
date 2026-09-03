@@ -1,9 +1,9 @@
-const CACHE_NAME = "jeffdesign101-shell-v2.3";
+const CACHE_NAME="jeffdesign101-v2.5";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=v2.2-glass",
-  "./app.js?v=v2.2-glass",
+  "./styles.css?v=v2.5-paste-delete",
+  "./app.js?v=v2.5-paste-delete",
   "./pwa.js?v=v2.3",
   "./manifest.webmanifest",
   "./assets/jeffdesign101-logo.png",

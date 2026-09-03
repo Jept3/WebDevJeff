@@ -411,3 +411,49 @@ body.pwa-sheet-open{overflow:hidden}
   .pwa-install-card{padding:24px 20px;border-radius:24px}
 }
 @media(display-mode:standalone){.pwa-install-btn{display:none!important}}
+
+/* ---------- v2.4 Office-style adaptive rich fields ---------- */
+.office-editor-wrap{gap:10px}
+.office-rich{overflow:visible;background:linear-gradient(180deg,rgba(7,16,12,.82),rgba(7,14,11,.94))}
+.office-rich .rich-tools{position:sticky;top:0;z-index:2;align-items:center;gap:6px;background:rgba(11,20,15,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.paste-hint{margin-right:auto;color:#9dad9f;font-size:10px;font-weight:800;letter-spacing:.04em}
+.rich-tool-btn{min-width:36px}
+.office-editor{width:100%;min-height:180px;height:auto;max-height:none;overflow:visible;padding:16px 17px;font-size:14px;line-height:1.72;white-space:normal;word-break:break-word}
+.office-editor:empty:before{content:attr(data-placeholder);color:#607066;pointer-events:none}
+.office-editor p,.rich-output p{margin:.45em 0}
+.office-editor h1,.office-editor h2,.office-editor h3,.office-editor h4,.rich-output h1,.rich-output h2,.rich-output h3,.rich-output h4{margin:.75em 0 .35em;line-height:1.25}
+.office-editor h1,.rich-output h1{font-size:1.6em}.office-editor h2,.rich-output h2{font-size:1.35em}.office-editor h3,.rich-output h3{font-size:1.15em}
+.office-editor ul,.office-editor ol,.rich-output ul,.rich-output ol{padding-left:1.5rem;margin:.55em 0}
+.office-editor li,.rich-output li{margin:.22em 0}
+.office-editor blockquote,.rich-output blockquote{margin:.8em 0;padding:.25em 0 .25em 14px;border-left:3px solid rgba(182,255,47,.38);color:#cbd7cd}
+.office-editor a,.rich-output a{color:#baff3a;text-decoration:underline;text-underline-offset:2px}
+.office-editor table,.rich-output table{width:100%;border-collapse:collapse;margin:.8em 0;display:block;overflow-x:auto;border-radius:10px}
+.office-editor th,.office-editor td,.rich-output th,.rich-output td{border:1px solid rgba(255,255,255,.14);padding:8px 10px;min-width:90px;text-align:left}
+.office-editor th,.rich-output th{background:rgba(182,255,47,.08)}
+.editor-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.editor-foot small{color:#7f9083;line-height:1.45;max-width:680px}
+.rich-output{overflow:auto}
+@media(max-width:620px){
+  .office-rich .rich-tools{position:relative;overflow-x:auto;flex-wrap:nowrap}
+  .paste-hint{display:none}
+  .rich-tool-btn{flex:0 0 auto}
+  .office-editor{min-height:160px;padding:14px}
+  .editor-foot{align-items:stretch}
+  .editor-foot .btn{width:100%}
+}
+
+/* v2.5 request controls */
+.mini-btn.danger{color:#ff9da3;border-color:rgba(255,100,110,.22);background:rgba(255,80,95,.055)}
+.mini-btn.danger:hover{border-color:rgba(255,100,110,.45);background:rgba(255,80,95,.09)}
+
+
+/* ---------- v2.6 rich task editor ---------- */
+.rich-title-wrap{border-radius:15px}
+.rich-tools.compact{padding:7px 8px}
+.rich-title-editor{min-height:50px!important;max-height:120px;padding:13px 14px;font-size:16px;font-weight:750;line-height:1.45;overflow:auto}
+.rich-title-editor:empty:before{content:attr(data-placeholder);color:#647168;font-weight:600}
+.rich-task-title{line-height:1.45;word-break:break-word}
+.rich-task-title b,.rich-task-title strong{font-weight:900}
+.rich-task-title i,.rich-task-title em{font-style:italic}
+.rich-task-title u{text-decoration:underline}
+.mini-btn.danger{color:#ff9da3;border-color:rgba(255,100,110,.22);background:rgba(255,80,90,.05)}

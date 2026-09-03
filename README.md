@@ -63,3 +63,10 @@ Before a public launch, enable MFA for Admin accounts in Supabase Auth, configur
 ## Local smoke test
 
 Because this is a static frontend, serve the directory with any local static server rather than opening `index.html` via `file://`. Example: `python -m http.server 8080`.
+
+## v2.5 Paste + Employer Request Delete Fix
+- Fixed Office/Word rich-paste being swallowed on Safari/iOS/PWA when clipboardData or selection is unavailable.
+- Added safe native-paste fallback and post-paste sanitization.
+- Added cursor/execCommand/append fallbacks so pasted content is not lost.
+- Employer can delete their own requests from Overview and Tasks when portal permission is `edit`.
+- Delete remains protected by Supabase RLS and is limited to the signed-in employer's own project/task.
