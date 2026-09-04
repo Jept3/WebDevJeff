@@ -1,4 +1,4 @@
-const BUILD="v2.19-project-operations";
+const BUILD="v2.20-persistent-routing";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -59,7 +59,7 @@ function websiteProjectStatusPill(status){return `<span class="status ${status==
 
 const state={
   sb:null,session:null,profile:null,role:null,clients:[],tasks:[],time:[],invoices:[],billing:null,
-  activeClient:null,activeWebsiteProject:null,adminView:"dashboard",employerView:"overview",workspacePromise:null,timer:null,authSubscription:null,navSeq:0
+  activeClient:null,activeWebsiteProject:null,activeWebsiteProjectMode:null,adminView:"dashboard",employerView:"overview",workspacePromise:null,timer:null,authSubscription:null,navSeq:0,routing:false
 };
 
 function hideBootSplash(){document.body.classList.remove("booting")}
@@ -114,7 +114,8 @@ async function loadWorkspace(){
     await Promise.all([loadTasks(),loadTime(),loadInvoices(),loadBilling()]);
     showApp();
     configureRoleUI();
-    if(roleIsAdmin())renderAdmin("dashboard"); else {state.activeClient=state.clients[0]?.id||null;renderEmployer("overview")}
+    if(!roleIsAdmin())state.activeClient=state.clients[0]?.id||null;
+    await applyAppRoute({replaceInvalid:true});
   })().finally(()=>state.workspacePromise=null);
   return state.workspacePromise;
 }
@@ -129,6 +130,52 @@ async function loadBilling(){
   if(error)console.warn(error);
   state.billing=data||{hourly_rate:3,business_name:"Jeffdesign101 / Webdev VA",full_name:"",email:"",phone:"",address:"Philippines",payment_instructions:""};
 }
+
+const ADMIN_ROUTE_VIEWS=new Set(["dashboard","clients","websites","activity","prompts","tasks","time","invoices","billing","trash"]);
+const EMPLOYER_ROUTE_TO_VIEW={overview:"overview",websites:"website",tasks:"tasks",files:"files",work:"work",invoices:"invoices",account:"account"};
+const EMPLOYER_VIEW_TO_ROUTE={overview:"overview",website:"websites",tasks:"tasks",files:"files",work:"work",invoices:"invoices",account:"account"};
+function routeSegments(){return String(location.hash||"").replace(/^#\/?/,"").split("/").filter(Boolean).map(x=>{try{return decodeURIComponent(x)}catch{return x}})}
+function routeHash(parts){return "#/"+parts.map(x=>encodeURIComponent(String(x))).join("/")}
+function setAppRoute(parts,{replace=false}={}){
+  if(state.routing)return;
+  const hash=routeHash(parts);if(location.hash===hash)return;
+  history[replace?"replaceState":"pushState"]({jeffRoute:parts},"",hash);
+}
+function canonicalRoute(parts){const hash=routeHash(parts);if(location.hash!==hash)history.replaceState({jeffRoute:parts},"",hash)}
+function adminRouteForView(view){return ["admin",ADMIN_ROUTE_VIEWS.has(view)?view:"dashboard"]}
+function employerRouteForView(view){return ["employer",EMPLOYER_VIEW_TO_ROUTE[view]||"overview"]}
+async function applyAppRoute({replaceInvalid=true}={}){
+  if(!state.session||!state.role)return;
+  const seg=routeSegments();state.routing=true;
+  try{
+    if(roleIsAdmin()){
+      if(seg[0]!=="admin"){
+        renderAdmin("dashboard");if(replaceInvalid)canonicalRoute(["admin","dashboard"]);return;
+      }
+      if(seg[1]==="clients"&&seg[2]){
+        const client=state.clients.find(c=>c.id===seg[2]);if(client){state.activeClient=client.id;await renderClientDetail(client.id);return}
+      }
+      if(seg[1]==="websites"&&seg[2]&&seg[3]){
+        const client=state.clients.find(c=>c.id===seg[2]);if(client){state.activeClient=client.id;await renderAdminWebsiteProject(client.id,seg[3]);return}
+      }
+      const view=ADMIN_ROUTE_VIEWS.has(seg[1])?seg[1]:"dashboard";renderAdmin(view);if(replaceInvalid&&seg[1]!==view)canonicalRoute(["admin",view]);return;
+    }
+    state.activeClient=state.clients[0]?.id||null;
+    if(seg[0]!=="employer"){
+      state.activeWebsiteProject=null;state.activeWebsiteProjectMode=null;renderEmployer("overview");if(replaceInvalid)canonicalRoute(["employer","overview"]);return;
+    }
+    if(seg[1]==="websites"&&seg[2]){
+      state.activeWebsiteProject=seg[2];state.activeWebsiteProjectMode=seg[3]==="intake"?"intake":"viewer";renderEmployer("website");return;
+    }
+    const view=EMPLOYER_ROUTE_TO_VIEW[seg[1]]||"overview";
+    if(view!=="website"){state.activeWebsiteProject=null;state.activeWebsiteProjectMode=null}
+    renderEmployer(view);if(replaceInvalid&&!EMPLOYER_ROUTE_TO_VIEW[seg[1]])canonicalRoute(employerRouteForView(view));
+  }catch(error){showPageError("Route",error)}finally{state.routing=false}
+}
+let routeApplyQueued=false;
+function queueApplyAppRoute(){if(routeApplyQueued)return;routeApplyQueued=true;queueMicrotask(async()=>{routeApplyQueued=false;await applyAppRoute({replaceInvalid:true})})}
+window.addEventListener("popstate",queueApplyAppRoute);
+window.addEventListener("hashchange",queueApplyAppRoute);
 
 function configureRoleUI(){
   $("roleBadge").textContent=roleIsAdmin()?"ADMIN":"EMPLOYER";
@@ -146,12 +193,15 @@ function showPageError(name,error){console.error(`[${name}]`,error);const v=$("v
 function runPage(name,fn){try{const result=fn();if(result&&typeof result.catch==="function")result.catch(error=>showPageError(name,error))}catch(error){showPageError(name,error)}}
 function renderAdmin(view){
   state.navSeq++;state.adminView=view;
+  setAppRoute(adminRouteForView(view));
   $$("[data-admin-view]").forEach(b=>b.classList.toggle("active",b.dataset.adminView===view));
   const map={dashboard:()=>renderDashboard(),clients:()=>renderClients(),websites:()=>renderAdminWebsiteProjects(),activity:()=>renderAdminProjectActivity(),prompts:()=>renderPromptLibrary(),tasks:()=>renderTaskInbox(),time:()=>renderTimePage(),invoices:()=>renderAdminInvoices(),billing:()=>renderBilling(),trash:()=>renderTrash()};
   closeMobileNav();runPage(`Admin ${view}`,map[view]||map.dashboard);
 }
 function renderEmployer(view){
   state.navSeq++;state.employerView=view;
+  if(view==="website"&&state.activeWebsiteProject)setAppRoute(["employer","websites",state.activeWebsiteProject,state.activeWebsiteProjectMode==="intake"?"intake":"view"]);
+  else setAppRoute(employerRouteForView(view));
   $$("[data-employer-view]").forEach(b=>b.classList.toggle("active",b.dataset.employerView===view));
   const map={overview:()=>renderEmployerOverview(),website:()=>renderEmployerWebsiteProject(),tasks:()=>renderEmployerTasks(),files:()=>renderEmployerFiles(),work:()=>renderEmployerWork(),invoices:()=>renderEmployerInvoices(),account:()=>renderEmployerAccount()};
   closeMobileNav();runPage(`Employer ${view}`,map[view]||map.overview);
@@ -231,6 +281,7 @@ function renderClientRows(){
 }
 
 async function renderClientDetail(id){
+  setAppRoute(["admin","clients",id]);
   const seq=++state.navSeq,c=state.clients.find(x=>x.id===id);if(!c)return;
   state.activeClient=id;state.activeWebsiteProject=null;setPageTitle("Employer Details");
   const [sub,files,projects,legacyAssets]=await Promise.all([getSubmission(id),listFiles(id),listWebsiteProjects(id),listLegacyWebsiteAssets(id)]),tasks=state.tasks.filter(t=>t.client_id===id);if(seq!==state.navSeq)return;
@@ -385,7 +436,7 @@ function websiteProjectEmployerCard(project,editable){
   </article>`
 }
 function openNewWebsiteProjectModal(){const c=currentClient();if(!c||c.portal_permission==="view")return toast("This portal is View Only");$("websiteProjectName").value=c.company||"";$("websiteProjectType").value="Business Website";$("websiteProjectNote").value="";openModal("websiteProjectModal");setTimeout(()=>$("websiteProjectName")?.focus(),60)}
-async function createWebsiteProject(){const c=currentClient();if(!c||c.portal_permission==="view")return toast("This portal is View Only");const name=$("websiteProjectName")?.value.trim()||"",type=$("websiteProjectType")?.value||"Business Website",note=$("websiteProjectNote")?.value.trim()||"";if(!name)return toast("Enter a website project name");const website_notes=[type?`Project type: ${type}`:"",note].filter(Boolean).join("\n\n");const payload={client_id:c.id,created_by:state.session.user.id,website_name:name,website_intake:{},website_notes,status:"draft",updated_at:new Date().toISOString()};const submit=$("websiteProjectForm")?.querySelector('button[type="submit"]');setBusy(submit,true,"Creating…");try{const {data,error}=await state.sb.from("website_projects").insert(payload).select("*").single();if(error)throw error;state.activeWebsiteProject=data.id;closeModal("websiteProjectModal");toast("Website project created");renderEmployer("website")}catch(e){toast(e.message||"Could not create project")}finally{setBusy(submit,false)}}
+async function createWebsiteProject(){const c=currentClient();if(!c||c.portal_permission==="view")return toast("This portal is View Only");const name=$("websiteProjectName")?.value.trim()||"",type=$("websiteProjectType")?.value||"Business Website",note=$("websiteProjectNote")?.value.trim()||"";if(!name)return toast("Enter a website project name");const website_notes=[type?`Project type: ${type}`:"",note].filter(Boolean).join("\n\n");const payload={client_id:c.id,created_by:state.session.user.id,website_name:name,website_intake:{},website_notes,status:"draft",updated_at:new Date().toISOString()};const submit=$("websiteProjectForm")?.querySelector('button[type="submit"]');setBusy(submit,true,"Creating…");try{const {data,error}=await state.sb.from("website_projects").insert(payload).select("*").single();if(error)throw error;state.activeWebsiteProject=data.id;state.activeWebsiteProjectMode="intake";closeModal("websiteProjectModal");toast("Website project created");renderEmployer("website")}catch(e){toast(e.message||"Could not create project")}finally{setBusy(submit,false)}}
 async function openWebsiteProject(id){state.activeWebsiteProject=id;state.activeWebsiteProjectMode="intake";renderEmployer("website")}
 async function viewWebsiteProject(id){state.activeWebsiteProject=id;state.activeWebsiteProjectMode="viewer";renderEmployer("website")}
 function closeWebsiteProject(){state.activeWebsiteProject=null;state.activeWebsiteProjectMode=null;renderEmployer("website")}
@@ -508,6 +559,7 @@ async function renderAdminWebsiteProjects(){
 function filterAdminWebsiteCards(){const q=($("websiteProjectSearch")?.value||"").trim().toLowerCase(),status=$("websiteProjectStatusFilter")?.value||"all";$$('.admin-website-list-card').forEach(card=>{const matchText=!q||String(card.dataset.projectSearch||"").includes(q),matchStatus=status==="all"||card.dataset.projectStatus===status;card.classList.toggle("hidden",!(matchText&&matchStatus))})}
 
 async function renderAdminWebsiteProject(clientId,projectId){
+  setAppRoute(["admin","websites",clientId,projectId]);
   const seq=++state.navSeq,c=state.clients.find(x=>x.id===clientId);if(!c)return toast("Employer not found");state.activeClient=clientId;state.activeAdminWebsiteProject=projectId;setPageTitle("Website Project Admin");
   const project=await getWebsiteProject(projectId);if(!project||seq!==state.navSeq)return;const [assets,events]=await Promise.all([listWebsiteProjectAssets(clientId,projectId),listWebsiteProjectEvents(clientId,projectId,40)]);if(seq!==state.navSeq)return;state._websiteProjects=[project];const gallery=showcaseGalleryPaths(project),urls=await Promise.all([project.showcase_logo_path,...gallery].filter(Boolean).map(p=>signedFileUrl(p)));if(seq!==state.navSeq)return;let cursor=0;const logoUrl=project.showcase_logo_path?urls[cursor++]:"",galleryUrls=gallery.map(()=>urls[cursor++]).filter(Boolean);
   $("view").innerHTML=`<section class="page-shell admin-website-workspace"><div class="page-head"><div><button class="btn ghost" data-action="back-to-admin-websites">← Website Projects</button><span class="section-label">ADMIN WEBSITE WORKSPACE</span><h1>${esc(project.website_name||"Untitled Website")}</h1><p class="muted">You control production status, branding, website preview, screenshots, and what the Employer can see.</p></div><div class="page-head-actions"><button class="btn ghost" data-action="copy-project-intake" data-id="${project.id}" data-client-id="${c.id}">Copy Full Intake</button></div></div>
@@ -935,7 +987,7 @@ document.addEventListener("click",async e=>{
   const a=e.target.closest("[data-action]"),av=e.target.closest("[data-admin-view]"),ev=e.target.closest("[data-employer-view]"),close=e.target.closest("[data-close]");
   if(close)return closeModal(close.dataset.close);
   if(av&&roleIsAdmin()){closeMobileNav();return renderAdmin(av.dataset.adminView)}
-  if(ev&&!roleIsAdmin())return renderEmployer(ev.dataset.employerView);
+  if(ev&&!roleIsAdmin()){if(ev.dataset.employerView==="website"){state.activeWebsiteProject=null;state.activeWebsiteProjectMode=null}return renderEmployer(ev.dataset.employerView)}
   if(!a)return;
   const id=a.dataset.id,act=a.dataset.action;
   try{
@@ -1047,7 +1099,7 @@ function renderCommandResults(query=""){
 }
 function openCommandPalette(){if(!state.session)return;const p=$("commandPalette");if(!p)return;p.classList.remove("hidden");requestAnimationFrame(()=>p.classList.add("is-open"));renderCommandResults();const input=$("commandSearch");input.value="";setTimeout(()=>input.focus(),0)}
 function closeCommandPalette(){const p=$("commandPalette");if(!p)return;p.classList.remove("is-open");p.classList.add("hidden")}
-function runCommandButton(btn){if(!btn)return;const view=btn.dataset.commandView,action=btn.dataset.commandAction;closeCommandPalette();if(view){roleIsAdmin()?renderAdmin(view):renderEmployer(view);return}if(action==="new-client"&&roleIsAdmin())openClientModal()}
+function runCommandButton(btn){if(!btn)return;const view=btn.dataset.commandView,action=btn.dataset.commandAction;closeCommandPalette();if(view){if(!roleIsAdmin()&&view==="website"){state.activeWebsiteProject=null;state.activeWebsiteProjectMode=null}roleIsAdmin()?renderAdmin(view):renderEmployer(view);return}if(action==="new-client"&&roleIsAdmin())openClientModal()}
 function installViewMotion(){const view=$("view");if(!view)return;new MutationObserver(()=>{view.classList.remove("view-enter");requestAnimationFrame(()=>view.classList.add("view-enter"))}).observe(view,{childList:true})}
 function setBusy(button,busy,label="Working…"){if(!button)return;if(busy){button.dataset.oldText=button.textContent;button.textContent=label;button.disabled=true;button.setAttribute("aria-busy","true")}else{button.textContent=button.dataset.oldText||button.textContent;button.disabled=false;button.removeAttribute("aria-busy")}}
 
