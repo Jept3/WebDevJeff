@@ -884,3 +884,50 @@ body{min-height:100%;overflow-x:hidden;overscroll-behavior-y:auto;touch-action:p
   .admin-publish-toggle{padding:13px}
   .intake-response .intake-answer{min-height:190px}
 }
+
+
+/* ---------- v2.16.1 website project layout + admin projects hub ---------- */
+body.employer .employer-tabs{
+  position:relative!important;
+  top:auto!important;
+  z-index:20;
+  margin:12px 0 18px!important;
+  overflow-x:auto;
+  overflow-y:hidden;
+  flex-shrink:0;
+}
+body.employer .view{margin-top:0!important;position:relative;z-index:1}
+body.employer .main{display:flex;flex-direction:column;min-height:100vh}
+.employer-websites-page{display:grid;gap:14px}
+.website-project-pagehead{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:0!important;padding:22px 24px!important;border-radius:22px}
+.website-project-pagehead h1{margin:4px 0 8px;font-size:clamp(25px,2.3vw,36px);letter-spacing:-.035em}
+.website-project-pagehead p{margin:0;max-width:720px}
+.website-project-pagehead .page-head-actions{display:flex;flex:0 0 auto}
+.client-hero-cta{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+.admin-websites-page{display:grid;gap:15px}
+.admin-website-stats{margin:0}
+.admin-website-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.admin-website-list-card{padding:18px;border-radius:20px;display:grid;gap:14px;min-width:0}
+.admin-website-list-main{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.admin-website-list-main h3{margin:4px 0 6px;font-size:20px;overflow-wrap:anywhere}
+.admin-website-list-main p{margin:0}
+.admin-website-card-meta{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.project-progress-line{height:7px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}
+.project-progress-line i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#a9ff22,#5be6ae)}
+.admin-website-card-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+@media(max-width:1100px){.admin-website-list{grid-template-columns:1fr}}
+@media(max-width:800px){
+  body.employer .employer-tabs{display:none!important}
+  .website-project-pagehead,.admin-website-list-main{display:grid;align-items:start}
+  .website-project-pagehead .page-head-actions,.website-project-pagehead .page-head-actions .btn{width:100%}
+  .admin-website-card-meta{justify-content:flex-start}
+  .admin-website-card-actions .btn{flex:1 1 180px}
+}
+@media(max-width:520px){
+  .website-project-pagehead{padding:18px!important}
+  .website-project-pagehead h1{font-size:27px}
+  .admin-website-card-actions{display:grid;grid-template-columns:1fr}
+  .admin-website-card-actions .btn,.admin-website-card-actions .mini-btn{width:100%}
+  .client-hero-cta{display:grid;grid-template-columns:1fr}
+  .client-hero-cta .btn{width:100%}
+}
