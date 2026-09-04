@@ -979,3 +979,29 @@ body.employer .main{display:flex;flex-direction:column;min-height:100vh}
 .upload-status{margin-top:10px;font-size:12px}.upload-status.upload-success{color:#9dff73}.upload-status.upload-error{color:#ff9da3}
 #websiteProjectAssetsList{margin-top:4px}
 @media(max-width:620px){.employer-upload-drop{min-height:112px;padding:18px 14px}.website-assets-panel .file-grid{grid-template-columns:1fr}}
+
+/* ---------- v2.18 system audit + project asset library ---------- */
+.asset-upload-controls{display:grid;grid-template-columns:minmax(190px,280px) minmax(0,1fr);gap:12px;align-items:stretch;margin:10px 0 2px}
+.asset-upload-controls .field{margin:0}.asset-upload-controls .website-dropzone{margin:0;min-height:96px}
+.asset-category-stack{display:grid;gap:14px;margin-top:12px}
+.asset-category-group{border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:14px;background:rgba(255,255,255,.018)}
+.asset-category-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.asset-category-head>div{display:flex;align-items:center;gap:10px}.asset-category-head .section-label{margin:0}.asset-category-head strong{font-size:12px;color:#dce8df}
+.asset-file-card{display:grid!important;grid-template-columns:42px minmax(0,1fr) auto;align-items:center!important;gap:11px!important;min-width:0}
+.asset-file-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(182,255,47,.12),rgba(255,255,255,.035));border:1px solid rgba(182,255,47,.15);color:#c6ff69;font-size:17px}
+.asset-file-copy{min-width:0}.asset-file-copy strong{overflow-wrap:anywhere}.asset-file-copy small{display:block;margin-top:4px}
+.admin-asset-library{margin-top:14px}.admin-asset-upload-row{display:grid;grid-template-columns:minmax(190px,260px) auto minmax(200px,1fr);gap:10px;align-items:end;margin:12px 0 16px}
+.admin-asset-upload-row .field{margin:0}.admin-project-asset-upload{min-height:44px;display:flex;align-items:center;justify-content:center}.admin-asset-upload-row .upload-status{margin:0;min-height:44px}
+.asset-library-project{margin-top:13px}
+.logo-proof,.showcase-logo-proof{display:grid;gap:12px;width:100%}
+.logo-proof-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.logo-proof-head h4,.logo-proof-head h3{margin:4px 0 0}
+.logo-proof-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.logo-proof-panel{position:relative;min-height:180px;border-radius:18px;border:1px solid rgba(255,255,255,.10);padding:34px 18px 18px;display:grid;place-items:center;cursor:pointer;overflow:hidden;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.logo-proof-panel:hover{transform:translateY(-2px);border-color:rgba(182,255,47,.28);box-shadow:0 18px 40px rgba(0,0,0,.18)}
+.logo-proof-panel span{position:absolute;top:10px;left:12px;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;opacity:.72}
+.logo-proof-panel img{width:min(240px,80%);height:110px;object-fit:contain}
+.logo-proof-panel.light{background:#f7faf8;color:#182018}.logo-proof-panel.dark{background:#050a07;color:#eef5ef}
+.logo-empty{min-height:190px;display:grid;place-items:center;text-align:center}.logo-empty span{display:block;color:var(--muted);margin-top:5px}
+.project-showcase .showcase-logo-proof{max-width:520px}
+@media(max-width:820px){.asset-upload-controls,.admin-asset-upload-row{grid-template-columns:1fr}.admin-project-asset-upload{width:100%}.logo-proof-grid{grid-template-columns:1fr 1fr}.logo-proof-panel{min-height:150px}.logo-proof-panel img{height:90px}}
+@media(max-width:560px){.asset-file-card{grid-template-columns:38px minmax(0,1fr)}.asset-file-card .row-actions{grid-column:1/-1;width:100%}.asset-file-card .row-actions>*{flex:1}.logo-proof-grid{grid-template-columns:1fr}.logo-proof-panel{min-height:160px}}

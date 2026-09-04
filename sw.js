@@ -1,9 +1,9 @@
-const CACHE_NAME="jeffdesign101-v2.17.3";
+const CACHE_NAME="jeffdesign101-v2.18";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=v2.17.3-storage-rls-hotfix",
-  "./app.js?v=v2.17.3-storage-rls-hotfix",
+  "./styles.css?v=v2.18-system-audit",
+  "./app.js?v=v2.18-system-audit",
   "./pwa.js?v=v2.3",
   "./manifest.webmanifest",
   "./assets/jeffdesign101-logo.png",
