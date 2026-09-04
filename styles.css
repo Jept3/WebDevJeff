@@ -1073,3 +1073,136 @@ body.employer .main{display:flex;flex-direction:column;min-height:100vh}
 @media(prefers-reduced-motion:reduce){
   .showcase-track,.carousel-arrow,.carousel-thumb,.showcase-dots button{transition:none!important}
 }
+
+/* ---------- v2.22.1 carousel stability + Admin desktop workspace ---------- */
+/* Keep the Admin application chrome fixed on desktop. Only the workspace scrolls. */
+@media (min-width:951px){
+  body:not(.employer) .app{display:block;min-height:100vh}
+  body:not(.employer) .sidebar{position:fixed!important;inset:0 auto 0 0;width:240px;height:100dvh;overflow-y:auto;overscroll-behavior:contain;z-index:200}
+  body:not(.employer) .main{margin-left:240px;width:calc(100% - 240px);min-height:100vh;padding-left:24px;padding-right:24px}
+  body:not(.employer) .view{width:100%;max-width:1500px;margin-left:auto;margin-right:auto}
+
+  /* Production controls and gallery now use the full workspace width instead of
+     leaving a tall empty column beside a long screenshot gallery. */
+  body:not(.employer) .admin-project-grid{grid-template-columns:minmax(0,1fr)!important}
+  body:not(.employer) .admin-production-panel,
+  body:not(.employer) .admin-branding-panel{width:100%}
+  body:not(.employer) .admin-branding-panel .showcase-carousel{width:min(1120px,100%);margin:18px auto 0}
+  body:not(.employer) .admin-branding-panel .dual-logo-proof,
+  body:not(.employer) .admin-branding-panel .dual-logo-upload{max-width:1120px;margin-left:auto;margin-right:auto}
+}
+
+/* Carousel controls must remain independent of drag gestures and never change the
+   document's vertical scroll position while autoplay is running. */
+.showcase-viewport{position:relative;overflow:hidden;touch-action:pan-y}
+.carousel-arrow{pointer-events:auto;user-select:none;-webkit-user-select:none}
+.carousel-arrow:focus-visible,.carousel-thumb:focus-visible,.showcase-dots button:focus-visible,.carousel-play-toggle:focus-visible{outline:2px solid #b8ff3d;outline-offset:2px}
+.carousel-thumb-rail{overscroll-behavior-x:contain}
+
+/* ---------- v2.22.2 structural desktop nav + carousel stability ---------- */
+@media (min-width:951px){
+  /* Admin: fixed navigation must be removed from layout flow. */
+  body:not(.employer) .app{
+    display:block!important;
+    min-height:100vh;
+  }
+  body:not(.employer) .sidebar{
+    display:flex!important;
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    bottom:0!important;
+    width:240px!important;
+    height:100dvh!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain;
+    z-index:300!important;
+  }
+  body:not(.employer) .main{
+    margin-left:240px!important;
+    width:calc(100% - 240px)!important;
+    max-width:none!important;
+    padding:16px 24px 60px!important;
+  }
+  body:not(.employer) .view{
+    width:100%;
+    max-width:1440px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+
+  /* Employer: use the same desktop application pattern instead of a floating top tab strip. */
+  body.employer .app{
+    display:block!important;
+    min-height:100vh;
+  }
+  body.employer .main{
+    width:calc(100% - 220px)!important;
+    max-width:none!important;
+    margin:0 0 0 220px!important;
+    padding:16px 24px 60px!important;
+  }
+  body.employer .employer-tabs{
+    display:flex!important;
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    bottom:0!important;
+    width:220px!important;
+    height:100dvh!important;
+    margin:0!important;
+    padding:92px 14px 22px!important;
+    border-radius:0!important;
+    border-width:0 1px 0 0!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:7px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    z-index:250!important;
+    background:linear-gradient(180deg,rgba(13,23,16,.97),rgba(6,13,9,.98))!important;
+    box-shadow:18px 0 44px rgba(0,0,0,.18)!important;
+  }
+  body.employer .employer-tabs::before{
+    content:"EMPLOYER PORTAL";
+    position:absolute;
+    left:22px;
+    top:28px;
+    color:#b6ff3b;
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.13em;
+  }
+  body.employer .employer-tabs button{
+    flex:0 0 auto!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:46px!important;
+    padding:12px 13px!important;
+    text-align:left!important;
+  }
+  body.employer .view{
+    width:100%!important;
+    max-width:1440px!important;
+    margin:14px auto 0!important;
+  }
+}
+
+/* Never let the carousel participate in page-level scroll anchoring. */
+.showcase-carousel,
+.showcase-viewport,
+.carousel-thumb-rail{
+  overflow-anchor:none!important;
+}
+.showcase-carousel{isolation:isolate}
+.carousel-arrow{
+  z-index:20!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+.showcase-slide-open{position:relative;z-index:1}
+.carousel-thumb-rail{scroll-behavior:auto!important}
+
+@media (max-width:950px){
+  body.employer .main{margin:0!important;width:100%!important}
+}

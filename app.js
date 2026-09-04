@@ -1,4 +1,4 @@
-const BUILD="v2.22-carousel-gallery";
+const BUILD="v2.22.2-carousel-nav-stability";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -672,7 +672,7 @@ function showcaseCarouselHtml(urls,{admin=false,projectId=""}={}){
   const total=urls.length;
   return `<div class="showcase-carousel ${admin?"admin-showcase-carousel":"employer-showcase-carousel"}" data-showcase-carousel data-autoplay="true" tabindex="0" aria-label="Website screenshots carousel">
     <div class="showcase-viewport"><div class="showcase-track">${urls.map((url,i)=>`<div class="showcase-slide" data-slide-index="${i}"><button class="showcase-slide-open" data-action="open-showcase-image" data-url="${esc(url)}" data-mode="screenshot" aria-label="Open screenshot ${i+1}"><img src="${esc(url)}" alt="Website screenshot ${i+1}" loading="lazy"></button>${admin?`<button class="carousel-remove-btn" data-action="remove-showcase-image" data-id="${projectId}" data-index="${i}" data-return="admin-workspace" aria-label="Remove screenshot ${i+1}">Remove</button>`:""}<span class="carousel-slide-number">${String(i+1).padStart(2,"0")}</span></div>`).join("")}</div>
-      ${total>1?`<button class="carousel-arrow prev" data-carousel-prev aria-label="Previous screenshot">‹</button><button class="carousel-arrow next" data-carousel-next aria-label="Next screenshot">›</button>`:""}
+      ${total>1?`<button type="button" class="carousel-arrow prev" data-carousel-prev aria-label="Previous screenshot">‹</button><button type="button" class="carousel-arrow next" data-carousel-next aria-label="Next screenshot">›</button>`:""}
     </div>
     <div class="carousel-control-bar"><div class="carousel-counter"><strong data-carousel-current>1</strong><span>/ ${total}</span></div><div class="showcase-dots">${urls.map((_,i)=>`<button type="button" class="${i===0?"active":""}" data-carousel-dot="${i}" aria-label="Go to screenshot ${i+1}"></button>`).join("")}</div><button class="carousel-play-toggle" type="button" data-carousel-toggle aria-label="Pause carousel">Pause</button></div>
     ${total>1?`<div class="carousel-thumb-rail" aria-label="Screenshot thumbnails">${urls.map((url,i)=>`<button type="button" class="carousel-thumb ${i===0?"active":""}" data-carousel-thumb="${i}" aria-label="Show screenshot ${i+1}"><img src="${esc(url)}" alt="" loading="lazy"></button>`).join("")}</div>`:""}
@@ -683,26 +683,45 @@ function startShowcaseCarousels(){
     if(car._cleanup)car._cleanup();
     const track=car.querySelector('.showcase-track'),slides=[...car.querySelectorAll('.showcase-slide')],dots=[...car.querySelectorAll('[data-carousel-dot]')],thumbs=[...car.querySelectorAll('[data-carousel-thumb]')],counter=car.querySelector('[data-carousel-current]'),toggle=car.querySelector('[data-carousel-toggle]');
     if(!track||!slides.length)return;
-    let i=0,timer=null,paused=false,startX=0,dragX=0,dragging=false,suppressClick=false;
+    let i=0,timer=null,paused=false,startX=0,dragX=0,dragging=false,suppressClick=false,inView=true;
     const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const go=(n,animate=true)=>{i=(n+slides.length)%slides.length;track.style.transition=animate&&!reduce?'transform .62s cubic-bezier(.2,.8,.2,1)':'none';track.style.transform=`translate3d(-${i*100}%,0,0)`;dots.forEach((d,x)=>d.classList.toggle('active',x===i));thumbs.forEach((t,x)=>t.classList.toggle('active',x===i));if(counter)counter.textContent=String(i+1);thumbs[i]?.scrollIntoView?.({behavior:reduce?'auto':'smooth',inline:'center',block:'nearest'})};
+    const go=(n,animate=true)=>{
+      i=(n+slides.length)%slides.length;
+      track.style.transition=animate&&!reduce?'transform .62s cubic-bezier(.2,.8,.2,1)':'none';
+      track.style.transform=`translate3d(-${i*100}%,0,0)`;
+      dots.forEach((d,x)=>{const active=x===i;d.classList.toggle('active',active);d.setAttribute('aria-current',active?'true':'false')});
+      thumbs.forEach((t,x)=>{const active=x===i;t.classList.toggle('active',active);t.setAttribute('aria-current',active?'true':'false')});
+      if(counter)counter.textContent=String(i+1);
+    };
     const stop=()=>{if(timer){clearInterval(timer);timer=null}};
-    const start=()=>{stop();if(slides.length<2||paused||reduce||document.hidden)return;timer=setInterval(()=>go(i+1),4300)};
+    const start=()=>{stop();if(slides.length<2||paused||reduce||document.hidden||!inView)return;timer=setInterval(()=>go(i+1),4300)};
     const setPaused=v=>{paused=v;stop();if(toggle){toggle.textContent=paused?'Play':'Pause';toggle.setAttribute('aria-label',paused?'Play carousel':'Pause carousel')}if(!paused)start()};
-    car.querySelector('[data-carousel-prev]')?.addEventListener('click',e=>{e.preventDefault();go(i-1);start()});
-    car.querySelector('[data-carousel-next]')?.addEventListener('click',e=>{e.preventDefault();go(i+1);start()});
-    dots.forEach(d=>d.addEventListener('click',()=>{go(Number(d.dataset.carouselDot));start()}));
-    thumbs.forEach(t=>t.addEventListener('click',()=>{go(Number(t.dataset.carouselThumb));start()}));
-    toggle?.addEventListener('click',()=>setPaused(!paused));
+    const onClick=e=>{
+      const prev=e.target.closest('[data-carousel-prev]'),next=e.target.closest('[data-carousel-next]'),dot=e.target.closest('[data-carousel-dot]'),thumb=e.target.closest('[data-carousel-thumb]'),play=e.target.closest('[data-carousel-toggle]');
+      if(!(prev||next||dot||thumb||play))return;
+      e.preventDefault();e.stopPropagation();
+      if(prev)go(i-1);
+      else if(next)go(i+1);
+      else if(dot)go(Number(dot.dataset.carouselDot));
+      else if(thumb)go(Number(thumb.dataset.carouselThumb));
+      else if(play){setPaused(!paused);return}
+      start();
+    };
+    const stopControlPointer=e=>{if(e.target.closest('[data-carousel-prev],[data-carousel-next],[data-carousel-dot],[data-carousel-thumb],[data-carousel-toggle]'))e.stopPropagation()};
+    car.addEventListener('click',onClick);
+    car.addEventListener('pointerdown',stopControlPointer,true);
     car.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){e.preventDefault();go(i-1);start()}else if(e.key==='ArrowRight'){e.preventDefault();go(i+1);start()}});
     const vp=car.querySelector('.showcase-viewport');
-    const down=e=>{if(slides.length<2)return;dragging=true;startX=e.clientX;dragX=0;stop();vp?.setPointerCapture?.(e.pointerId);car.classList.add('is-dragging')};
+    const down=e=>{if(slides.length<2||e.target.closest('button,a,input,select,textarea,label'))return;dragging=true;startX=e.clientX;dragX=0;stop();vp?.setPointerCapture?.(e.pointerId);car.classList.add('is-dragging')};
     const move=e=>{if(!dragging)return;dragX=e.clientX-startX;const pct=(dragX/(vp?.clientWidth||1))*100;track.style.transition='none';track.style.transform=`translate3d(calc(-${i*100}% + ${pct}%),0,0)`};
-    const up=e=>{if(!dragging)return;dragging=false;car.classList.remove('is-dragging');const threshold=Math.min(90,(vp?.clientWidth||400)*.16);if(Math.abs(dragX)>threshold){suppressClick=true;go(i+(dragX<0?1:-1));setTimeout(()=>{suppressClick=false},80)}else go(i);start()};
+    const up=e=>{if(!dragging)return;dragging=false;car.classList.remove('is-dragging');const threshold=Math.min(90,(vp?.clientWidth||400)*.16);if(Math.abs(dragX)>threshold){suppressClick=true;go(i+(dragX<0?1:-1));setTimeout(()=>{suppressClick=false},100)}else go(i);start()};
     vp?.addEventListener('pointerdown',down);vp?.addEventListener('pointermove',move);vp?.addEventListener('pointerup',up);vp?.addEventListener('pointercancel',up);vp?.addEventListener('click',e=>{if(suppressClick){e.preventDefault();e.stopPropagation()}},true);
     car.addEventListener('mouseenter',stop);car.addEventListener('mouseleave',start);
     const vis=()=>{if(document.hidden)stop();else start()};document.addEventListener('visibilitychange',vis);
-    car._cleanup=()=>{stop();document.removeEventListener('visibilitychange',vis)};go(0,false);start();
+    let observer=null;
+    if('IntersectionObserver' in window){observer=new IntersectionObserver(entries=>{const entry=entries[0];inView=!!entry?.isIntersecting&&entry.intersectionRatio>=.25;if(inView)start();else stop()},{threshold:[0,.25,.5]});observer.observe(car)}
+    car._cleanup=()=>{stop();document.removeEventListener('visibilitychange',vis);car.removeEventListener('click',onClick);car.removeEventListener('pointerdown',stopControlPointer,true);observer?.disconnect()};
+    go(0,false);start();
   })
 }
 async function uploadShowcaseFile(file,clientId,projectId,kind){
