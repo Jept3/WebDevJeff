@@ -1243,3 +1243,71 @@ body.employer #app.hidden{
   .project-save-footer{display:grid;grid-template-columns:1fr;padding:16px;gap:14px}
   .project-footer-save{width:100%;min-width:0;min-height:50px}
 }
+
+
+/* ---------- v2.22.4 Employer desktop brand restoration ---------- */
+@media (min-width:951px){
+  body.employer .employer-tabs{
+    padding:18px 14px 22px!important;
+  }
+  body.employer .employer-tabs::before{
+    content:none!important;
+    display:none!important;
+  }
+  body.employer .employer-tabs .employer-desktop-brand{
+    display:flex!important;
+    align-items:center!important;
+    gap:10px!important;
+    width:100%!important;
+    min-height:58px!important;
+    flex:0 0 auto!important;
+    margin:0 0 18px!important;
+    padding:8px!important;
+    border:0!important;
+    border-radius:15px!important;
+    background:transparent!important;
+    color:#eef5ef!important;
+    text-align:left!important;
+    cursor:pointer!important;
+  }
+  body.employer .employer-tabs .employer-desktop-brand:hover{
+    background:rgba(182,255,47,.055)!important;
+  }
+  body.employer .employer-tabs .employer-desktop-brand img{
+    width:42px!important;
+    height:42px!important;
+    flex:0 0 42px!important;
+    border-radius:12px!important;
+    object-fit:cover!important;
+  }
+  body.employer .employer-tabs .employer-desktop-brand span{
+    min-width:0!important;
+    display:block!important;
+  }
+  body.employer .employer-tabs .employer-desktop-brand strong{
+    display:block!important;
+    color:#eef5ef!important;
+    font-size:15px!important;
+    line-height:1.15!important;
+    white-space:nowrap!important;
+  }
+  body.employer .employer-tabs .employer-desktop-brand small{
+    display:block!important;
+    margin-top:3px!important;
+    color:#7f8d83!important;
+    font-size:10px!important;
+    font-weight:600!important;
+    letter-spacing:0!important;
+    text-transform:none!important;
+    white-space:nowrap!important;
+  }
+  /* Keep the ordinary Employer navigation buttons visually separate from brand. */
+  body.employer .employer-tabs > button:not(.employer-desktop-brand){
+    flex:0 0 auto!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:46px!important;
+    padding:12px 13px!important;
+    text-align:left!important;
+  }
+}
