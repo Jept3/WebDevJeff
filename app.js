@@ -1,4 +1,4 @@
-const BUILD="v2.13-multi-website-projects";
+const BUILD="v2.14.1-employer-login-hotfix";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -237,6 +237,32 @@ async function deletePrompt(id){const p=(state.prompts||[]).find(x=>x.id===id);i
 
 async function listWebsiteProjects(clientId){if(!clientId)return[];const {data,error}=await state.sb.from("website_projects").select("*").eq("client_id",clientId).order("updated_at",{ascending:false});if(error){console.warn(error);throw error}return data||[]}
 async function getWebsiteProject(projectId){if(!projectId)return null;const {data,error}=await state.sb.from("website_projects").select("*").eq("id",projectId).maybeSingle();if(error)throw error;return data}
+async function renderEmployerOverview(){
+  const seq=state.navSeq;
+  setPageTitle("Employer Portal");
+  const c=currentClient();
+  if(!c){
+    $("view").innerHTML='<div class="empty"><strong>No project linked</strong></div>';
+    return;
+  }
+  const [sub,files]=await Promise.all([getSubmission(c.id),listFiles(c.id)]);
+  const tasks=state.tasks.filter(t=>t.client_id===c.id);
+  const editable=c.portal_permission!=="view";
+  if(seq!==state.navSeq)return;
+  $("view").innerHTML=`
+    <article class="card glass"><div class="section-head"><div><span class="section-label">EMPLOYER PROJECT</span><h3>${esc(c.name)}</h3><p class="muted">${esc(c.company||c.project_type||"Website project")}</p></div><div class="row-actions">${["ongoing","paused","complete"].map(s=>`<button class="mini-btn ${c.status===s?"active":""}" data-action="employer-status" data-status="${s}" ${editable?"":"disabled"}>${s==="ongoing"?"Active":s[0].toUpperCase()+s.slice(1)}</button>`).join("")}</div></div></article>
+    <div class="stats"><div class="stat glass"><span>Open requests</span><strong>${tasks.filter(t=>!t.done).length}</strong></div><div class="stat glass"><span>Completed</span><strong>${tasks.filter(t=>t.done).length}</strong></div><div class="stat glass"><span>Incoming invoices</span><strong>${state.invoices.filter(i=>i.client_id===c.id&&i.status==="pending").length}</strong></div><div class="stat glass"><span>Amount due</span><strong>${money(state.invoices.filter(i=>i.client_id===c.id&&i.status==="pending").reduce((s,i)=>s+Number(i.total||0),0))}</strong></div></div>
+    <div class="grid2">
+      <article class="card glass"><span class="section-label">CURRENT REQUEST</span><h3>Send a task to your VA</h3>${editable?taskComposerHtml("overview"):'<p class="muted">This portal is View Only.</p>'}</article>
+      <article class="card glass"><span class="section-label">CURRENT REQUESTS</span><h3>Tasks you've sent</h3>${taskListHtml(tasks.slice(0,5),false,editable)}</article>
+    </div>
+    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">PROJECT INFORMATION</span><h3>Website information & instructions</h3>${editable?officeEditorHtml("projectInfo",sub?.project_information||"","Hosting details, admin access, content notes, feature requests, URLs, and everything your VA needs…","save-project-info","Save Information"):`<div class="read-block rich-output">${richStoredHtml(sub?.project_information||"No project information yet.")}</div>`}</article>
+    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">SHARED NOTES</span><h3>Notes for your VA</h3>${editable?officeEditorHtml("sharedNotes",sub?.shared_notes||"","Share reminders, follow-ups, revisions, deadlines, or anything your VA should remember…","save-shared-notes","Save Notes"):`<div class="read-block rich-output">${richStoredHtml(sub?.shared_notes||"No notes yet.")}</div>`}</article>
+    <article class="card glass" style="margin-top:13px"><div class="section-head"><div><span class="section-label">FILES</span><h3>Send files to your VA</h3></div>${editable?'<label class="btn primary">+ Upload Files<input id="overviewFiles" type="file" multiple hidden></label>':""}</div>${fileListHtml(files,c,editable)}</article>`;
+  setupRichEditors();
+  updateStatusDock();
+}
+
 async function renderEmployerWebsiteProject(){
   const seq=state.navSeq;setPageTitle("Website Projects");const c=currentClient();if(!c){$("view").innerHTML='<div class="empty"><strong>No employer account linked</strong></div>';return}const editable=c.portal_permission!=="view";
   let projects=[],legacyAssets=[];try{[projects,legacyAssets]=await Promise.all([listWebsiteProjects(c.id),listLegacyWebsiteAssets(c.id)])}catch(error){$("view").innerHTML=`<article class="card glass"><span class="section-label">WEBSITE PROJECTS</span><h3>Database upgrade required</h3><p class="muted">Run V2.13-MULTI-WEBSITE-PROJECTS-PATCH.sql in Supabase, then refresh.</p><div class="form-error">${esc(error.message)}</div></article>`;return}if(seq!==state.navSeq)return;
