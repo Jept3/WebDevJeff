@@ -931,3 +931,15 @@ body.employer .main{display:flex;flex-direction:column;min-height:100vh}
   .client-hero-cta{display:grid;grid-template-columns:1fr}
   .client-hero-cta .btn{width:100%}
 }
+
+
+/* ---------- v2.16.2 admin upload feedback ---------- */
+.upload-status{min-height:22px;margin:7px 2px 13px;font-size:12px;display:flex;align-items:center;gap:7px}
+.upload-status.uploading{color:#d7ff8a}
+.upload-status.uploading::before{content:"";width:12px;height:12px;border:2px solid rgba(182,255,47,.25);border-top-color:#b6ff2f;border-radius:50%;animation:uploadSpin .7s linear infinite}
+.upload-status.success{color:#91f5ad}
+.upload-status.success::before{content:"✓";font-weight:900}
+.upload-status.error{color:#ff9ca5}
+.upload-status.error::before{content:"!";font-weight:900}
+@keyframes uploadSpin{to{transform:rotate(360deg)}}
+.website-dropzone:focus-within,.website-dropzone:hover{border-color:rgba(182,255,47,.35);background:rgba(182,255,47,.055)}

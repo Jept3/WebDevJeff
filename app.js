@@ -1,4 +1,4 @@
-const BUILD="v2.16.1-project-layout";
+const BUILD="v2.16.2-admin-upload-fix";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -400,9 +400,56 @@ async function renderAdminWebsiteProject(clientId,projectId){
   const project=await getWebsiteProject(projectId);if(!project||seq!==state.navSeq)return;const gallery=showcaseGalleryPaths(project),urls=await Promise.all([project.showcase_logo_path,...gallery].filter(Boolean).map(p=>signedFileUrl(p)));if(seq!==state.navSeq)return;let cursor=0;const logoUrl=project.showcase_logo_path?urls[cursor++]:"",galleryUrls=gallery.map(()=>urls[cursor++]).filter(Boolean);
   $("view").innerHTML=`<section class="page-shell admin-website-workspace"><div class="page-head"><div><button class="btn ghost" data-action="back-to-admin-websites">← Website Projects</button><span class="section-label">ADMIN WEBSITE WORKSPACE</span><h1>${esc(project.website_name||"Untitled Website")}</h1><p class="muted">You control production status, branding, website preview, screenshots, and what the Employer can see.</p></div><div class="page-head-actions"><button class="btn ghost" data-action="copy-project-intake" data-id="${project.id}" data-client-id="${c.id}">Copy Full Intake</button></div></div>
   <div class="admin-project-grid"><article class="card glass admin-production-panel"><span class="section-label">PRODUCTION CONTROL</span><h3>Status & website preview</h3><div class="field"><span>Site Name</span><input id="adminWebsiteProjectName" value="${esc(project.website_name||"")}"></div><div class="field"><span>Project Status</span><select id="adminWebsiteProjectStatus"><option value="draft" ${project.status==="draft"?"selected":""}>Drafting</option><option value="in_progress" ${project.status==="in_progress"?"selected":""}>In Progress</option><option value="ready" ${project.status==="ready"?"selected":""}>Ready to Build</option><option value="complete" ${project.status==="complete"?"selected":""}>Completed</option></select></div><div class="field"><span>Website / Staging Link</span><input id="adminShowcaseUrl" value="${esc(project.showcase_url||"")}" placeholder="https://..."></div><div class="field"><span>Employer Update / Preview Notes</span><textarea id="adminShowcaseNotes" rows="6" placeholder="Latest update the Employer should see…">${esc(project.showcase_notes||"")}</textarea></div><label class="admin-publish-toggle"><input id="adminShowcasePublished" type="checkbox" ${project.showcase_published?"checked":""}><span><strong>Show preview to Employer</strong><small>Employer can only view the published logo, link and screenshots.</small></span></label><button class="btn primary full" data-action="save-admin-website-project" data-id="${project.id}" data-client-id="${c.id}">Save Production Settings</button></article>
-  <article class="card glass admin-branding-panel"><span class="section-label">BRANDING & GALLERY</span><h3>Logo and screenshots</h3><div class="admin-logo-stage">${logoUrl?`<button class="showcase-logo-card" data-action="open-showcase-image" data-url="${esc(logoUrl)}" data-mode="logo"><span>Current Website Logo</span><img src="${esc(logoUrl)}" alt="Website logo"></button>`:'<div class="empty"><strong>No logo uploaded</strong>Upload the logo you want the Employer to review.</div>'}</div><label class="website-dropzone"><strong>＋ Upload / Replace Logo</strong><span>PNG, JPG, WEBP or SVG · up to 25 MB</span><input id="adminShowcaseLogoInput" type="file" accept="image/*,.svg" hidden></label><label class="website-dropzone"><strong>＋ Add Project Screenshots</strong><span>Select multiple images for the Employer carousel</span><input id="adminShowcaseGalleryInput" type="file" multiple accept="image/*" hidden></label><div class="admin-gallery-grid">${galleryUrls.length?galleryUrls.map((url,i)=>`<div class="showcase-admin-shot"><button data-action="open-showcase-image" data-url="${esc(url)}" data-mode="screenshot"><img src="${esc(url)}" alt="Screenshot ${i+1}"></button><button class="mini-btn danger" data-action="remove-showcase-image" data-id="${project.id}" data-index="${i}" data-return="admin-workspace">Remove</button></div>`).join(""):'<div class="empty"><strong>No screenshots yet</strong>The Employer carousel will appear after you upload screenshots and publish the preview.</div>'}</div></article></div>
+  <article class="card glass admin-branding-panel"><span class="section-label">BRANDING & GALLERY</span><h3>Logo and screenshots</h3><div class="admin-logo-stage">${logoUrl?`<button class="showcase-logo-card" data-action="open-showcase-image" data-url="${esc(logoUrl)}" data-mode="logo"><span>Current Website Logo</span><img src="${esc(logoUrl)}" alt="Website logo"></button>`:'<div class="empty"><strong>No logo uploaded</strong>Upload the logo you want the Employer to review.</div>'}</div><label class="website-dropzone"><strong>＋ Upload / Replace Logo</strong><span>PNG, JPG, WEBP, SVG or HEIC · up to 25 MB</span><input id="adminShowcaseLogoInput" type="file" accept="image/*,.svg,.heic,.heif" hidden></label><div id="adminLogoUploadStatus" class="upload-status muted">Choose a logo to upload.</div><label class="website-dropzone"><strong>＋ Add Project Screenshots</strong><span>Select multiple images for the Employer carousel</span><input id="adminShowcaseGalleryInput" type="file" multiple accept="image/*,.heic,.heif" hidden></label><div id="adminGalleryUploadStatus" class="upload-status muted">Choose one or more screenshots to upload.</div><div class="admin-gallery-grid">${galleryUrls.length?galleryUrls.map((url,i)=>`<div class="showcase-admin-shot"><button data-action="open-showcase-image" data-url="${esc(url)}" data-mode="screenshot"><img src="${esc(url)}" alt="Screenshot ${i+1}"></button><button class="mini-btn danger" data-action="remove-showcase-image" data-id="${project.id}" data-index="${i}" data-return="admin-workspace">Remove</button></div>`).join(""):'<div class="empty"><strong>No screenshots yet</strong>The Employer carousel will appear after you upload screenshots and publish the preview.</div>'}</div></article></div>
   <article class="card glass"><div class="section-head"><div><span class="section-label">EMPLOYER INTAKE</span><h3>Submitted website information</h3><p class="muted">Employer-editable information is displayed here for Admin review.</p></div>${websiteProjectStatusPill(project.status)}</div><div class="intake-admin-preview">${websiteIntakeAdminHtml(project)}</div></article></section>`;
   setupAutoGrow($("view"));
+  setupAdminShowcaseUploads(clientId,projectId);
+}
+
+function validShowcaseImage(file){
+  if(!file)return false;
+  const type=String(file.type||"").toLowerCase(),name=String(file.name||"").toLowerCase();
+  return type.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg|heic|heif|avif)$/i.test(name);
+}
+function uploadStatus(id,msg,state=""){
+  const el=$(id);if(!el)return;el.textContent=msg;el.classList.remove("uploading","success","error");if(state)el.classList.add(state);
+}
+async function uploadAdminLogoNow(clientId,projectId,file){
+  if(!validShowcaseImage(file))return uploadStatus("adminLogoUploadStatus","Please choose an image file.","error");
+  if(file.size>25*1024*1024)return uploadStatus("adminLogoUploadStatus",`${file.name} exceeds the 25 MB limit.`,"error");
+  uploadStatus("adminLogoUploadStatus",`Uploading ${file.name}…`,"uploading");
+  try{
+    const project=await getWebsiteProject(projectId);if(!project)throw new Error("Project not found");
+    const next=await uploadShowcaseFile(file,clientId,projectId,"logo");
+    const {error}=await state.sb.from("website_projects").update({showcase_logo_path:next,showcase_updated_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",projectId).eq("client_id",clientId);
+    if(error){await state.sb.storage.from("client-files").remove([next]);throw error}
+    if(project.showcase_logo_path&&project.showcase_logo_path!==next)await state.sb.storage.from("client-files").remove([project.showcase_logo_path]);
+    uploadStatus("adminLogoUploadStatus","Logo uploaded successfully.","success");toast("Logo uploaded");
+    await renderAdminWebsiteProject(clientId,projectId);
+  }catch(e){console.error(e);uploadStatus("adminLogoUploadStatus",e.message||"Logo upload failed.","error");toast(e.message||"Logo upload failed")}
+}
+async function uploadAdminGalleryNow(clientId,projectId,files){
+  files=[...(files||[])];if(!files.length)return;
+  const bad=files.find(f=>!validShowcaseImage(f)||f.size>25*1024*1024);if(bad)return uploadStatus("adminGalleryUploadStatus",!validShowcaseImage(bad)?`${bad.name} is not a supported image.`:`${bad.name} exceeds the 25 MB limit.`,"error");
+  uploadStatus("adminGalleryUploadStatus",`Uploading ${files.length} screenshot${files.length===1?"":"s"}…`,"uploading");
+  const uploaded=[];
+  try{
+    const project=await getWebsiteProject(projectId);if(!project)throw new Error("Project not found");
+    const gallery=showcaseGalleryPaths(project);
+    for(let i=0;i<files.length;i++){
+      uploadStatus("adminGalleryUploadStatus",`Uploading ${i+1} of ${files.length}: ${files[i].name}`,"uploading");
+      const path=await uploadShowcaseFile(files[i],clientId,projectId,"gallery");uploaded.push(path);gallery.push(path);
+    }
+    const {error}=await state.sb.from("website_projects").update({showcase_gallery:gallery,showcase_updated_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",projectId).eq("client_id",clientId);
+    if(error){if(uploaded.length)await state.sb.storage.from("client-files").remove(uploaded);throw error}
+    uploadStatus("adminGalleryUploadStatus",`${files.length} screenshot${files.length===1?"":"s"} uploaded successfully.`,"success");toast("Screenshots uploaded");
+    await renderAdminWebsiteProject(clientId,projectId);
+  }catch(e){console.error(e);uploadStatus("adminGalleryUploadStatus",e.message||"Screenshot upload failed.","error");toast(e.message||"Screenshot upload failed")}
+}
+function setupAdminShowcaseUploads(clientId,projectId){
+  const logo=$("adminShowcaseLogoInput"),gallery=$("adminShowcaseGalleryInput");
+  if(logo)logo.addEventListener("change",async()=>{const file=logo.files?.[0];logo.value="";if(file)await uploadAdminLogoNow(clientId,projectId,file)});
+  if(gallery)gallery.addEventListener("change",async()=>{const files=[...(gallery.files||[])];gallery.value="";if(files.length)await uploadAdminGalleryNow(clientId,projectId,files)});
 }
 async function saveAdminWebsiteProject(clientId,projectId){
   const project=await getWebsiteProject(projectId);if(!project)return toast("Project not found");const btn=$(`[data-action="save-admin-website-project"]`);setBusy(btn,true,"Saving…");try{let logoPath=project.showcase_logo_path||"",gallery=showcaseGalleryPaths(project);const logoFile=$("adminShowcaseLogoInput")?.files?.[0];if(logoFile){const next=await uploadShowcaseFile(logoFile,clientId,projectId,"logo");if(logoPath)await state.sb.storage.from("client-files").remove([logoPath]);logoPath=next}for(const file of [...($("adminShowcaseGalleryInput")?.files||[])])gallery.push(await uploadShowcaseFile(file,clientId,projectId,"gallery"));const payload={website_name:$("adminWebsiteProjectName")?.value.trim()||project.website_name,status:$("adminWebsiteProjectStatus")?.value||"draft",showcase_url:$("adminShowcaseUrl")?.value.trim()||"",showcase_notes:$("adminShowcaseNotes")?.value.trim()||"",showcase_logo_path:logoPath,showcase_gallery:gallery,showcase_published:!!$("adminShowcasePublished")?.checked,showcase_updated_at:new Date().toISOString(),updated_at:new Date().toISOString()};const {error}=await state.sb.from("website_projects").update(payload).eq("id",projectId).eq("client_id",clientId);if(error)throw error;toast("Website production settings saved");await renderAdminWebsiteProject(clientId,projectId)}catch(e){toast(e.message||"Could not save project settings")}finally{setBusy(btn,false)}}
@@ -431,7 +478,7 @@ async function renderShowcaseAdminGallery(project){
   const box=$("showcaseGalleryPreview");if(!box)return;const paths=showcaseGalleryPaths(project),urls=await Promise.all(paths.map(p=>signedFileUrl(p)));box.innerHTML=paths.length?paths.map((path,i)=>`<div class="showcase-admin-shot"><img src="${esc(urls[i]||"")}" alt="Screenshot ${i+1}"><button type="button" class="mini-btn danger" data-action="remove-showcase-image" data-id="${project.id}" data-index="${i}">Remove</button></div>`).join(""):'<div class="empty"><strong>No screenshots yet</strong></div>';
 }
 async function uploadShowcaseFile(file,clientId,projectId,kind){
-  if(!file)return"";if(!file.type.startsWith("image/"))throw new Error("Showcase files must be images");if(file.size>25*1024*1024)throw new Error(`${file.name} exceeds the 25 MB limit`);const safe=file.name.replace(/[^\w.\- ]+/g,"_");const path=`${clientId}/website-projects/${projectId}/showcase/${kind}/${Date.now()}-${crypto.randomUUID().slice(0,8)}-${safe}`;const {error}=await state.sb.storage.from("client-files").upload(path,file,{upsert:false,contentType:file.type});if(error)throw error;return path;
+  if(!file)return"";if(!validShowcaseImage(file))throw new Error("Showcase files must be images");if(file.size>25*1024*1024)throw new Error(`${file.name} exceeds the 25 MB limit`);const safe=file.name.replace(/[^\w.\- ]+/g,"_");const path=`${clientId}/website-projects/${projectId}/showcase/${kind}/${Date.now()}-${crypto.randomUUID().slice(0,8)}-${safe}`;const options={upsert:false};if(file.type)options.contentType=file.type;const {error}=await state.sb.storage.from("client-files").upload(path,file,options);if(error)throw error;return path;
 }
 async function saveProjectShowcase(){
   const projectId=$("showcaseProjectId").value,clientId=$("showcaseClientId").value,project=await getWebsiteProject(projectId);if(!project)return toast("Project not found");
