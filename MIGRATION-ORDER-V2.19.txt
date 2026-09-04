@@ -1,0 +1,10 @@
+DATABASE ALREADY ON v2.18:
+1. Run V2.19-PROJECT-OPERATIONS-MIGRATION.sql
+2. Deploy v2.19 frontend
+3. Fully close/reopen installed PWA
+
+DATABASE NOT YET ON v2.18:
+1. Run V2.18-PROJECT-ASSET-LIBRARY-MIGRATION.sql
+2. Run V2.19-PROJECT-OPERATIONS-MIGRATION.sql
+3. Deploy v2.19 frontend
+4. Fully close/reopen installed PWA

@@ -19,7 +19,7 @@
   #bootSplash{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 18% 14%,rgba(182,255,47,.16),transparent 26%),radial-gradient(circle at 82% 18%,rgba(58,181,255,.10),transparent 24%),linear-gradient(180deg,#04100a 0%,#07130d 55%,#07110c 100%);color:#eef5ef;z-index:2500;transition:opacity .35s ease,visibility .35s ease}
   body:not(.booting) #bootSplash{opacity:0;visibility:hidden;pointer-events:none}
 </style>
-  <link rel="stylesheet" href="styles.css?v=v2.18-system-audit">
+  <link rel="stylesheet" href="styles.css?v=v2.19-ops">
 </head>
 <body class="booting">
   <div class="ambient ambient-a" aria-hidden="true"></div>
@@ -57,6 +57,7 @@
         <button data-admin-view="dashboard" class="nav-btn active">▦ <span>Dashboard</span></button>
         <button data-admin-view="clients" class="nav-btn">◎ <span>Employers</span></button>
         <button data-admin-view="websites" class="nav-btn">▧ <span>Website Projects</span></button>
+        <button data-admin-view="activity" class="nav-btn">◉ <span>Project Activity</span></button>
         <button data-admin-view="prompts" class="nav-btn">⌘ <span>Prompt Library</span></button>
         <button data-admin-view="tasks" class="nav-btn">☷ <span>Task Inbox</span><b id="taskBadge" class="badge hidden">0</b></button>
         <button data-admin-view="time" class="nav-btn">◷ <span>Time Log</span></button>
@@ -203,11 +204,21 @@
     </section>
   </div>
 
+
+  <div id="richLinkModal" class="modal-backdrop hidden">
+    <form id="richLinkForm" class="modal glass compact-dialog">
+      <div class="modal-head"><div><small>INSERT LINK</small><h3>Add a secure link</h3></div><button type="button" data-close="richLinkModal" class="icon-btn">×</button></div>
+      <label><span>Website URL</span><input id="richLinkUrl" type="url" inputmode="url" placeholder="https://example.com" required></label>
+      <p class="muted">Only http:// and https:// links are accepted.</p>
+      <div class="modal-actions"><button type="button" data-close="richLinkModal" class="btn ghost">Cancel</button><button type="submit" class="btn primary">Insert Link</button></div>
+    </form>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="config.js?v=clean-v1"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=v2.18-system-audit"></script>
+  <script src="app.js?v=v2.19-ops"></script>
   <script src="pwa.js?v=v2.3"></script>
 </body>
 </html>
