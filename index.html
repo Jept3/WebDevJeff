@@ -13,11 +13,28 @@
   <meta name="color-scheme" content="dark">
   <meta name="description" content="Jeffdesign101 secure VA workspace for employers, tasks, time tracking, files and billing.">
   <title>Jeffdesign101 — VA Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=v2.10-time-edit">
+  <style>
+  body.booting #loginScreen,
+  body.booting #app{visibility:hidden!important;pointer-events:none!important}
+  #bootSplash{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 18% 14%,rgba(182,255,47,.16),transparent 26%),radial-gradient(circle at 82% 18%,rgba(58,181,255,.10),transparent 24%),linear-gradient(180deg,#04100a 0%,#07130d 55%,#07110c 100%);color:#eef5ef;z-index:2500;transition:opacity .35s ease,visibility .35s ease}
+  body:not(.booting) #bootSplash{opacity:0;visibility:hidden;pointer-events:none}
+</style>
+  <link rel="stylesheet" href="styles.css?v=v2.14-project-showcase">
 </head>
 <body class="booting">
   <div class="ambient ambient-a" aria-hidden="true"></div>
   <div class="ambient ambient-b" aria-hidden="true"></div>
+  <div id="bootSplash" class="boot-splash" aria-live="polite" aria-label="Loading application">
+    <div class="boot-card glass">
+      <img src="assets/jeffdesign101-logo.png" alt="Jeffdesign101" class="boot-logo">
+      <div class="boot-copy">
+        <small>SECURE WORKSPACE</small>
+        <h1>Jeffdesign101</h1>
+        <p>Loading your workspace…</p>
+      </div>
+      <div class="boot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
+    </div>
+  </div>
   <section id="loginScreen" class="login-screen">
     <form id="loginForm" class="login-card glass" autocomplete="on">
       <div class="login-brand">
@@ -39,6 +56,7 @@
       <nav>
         <button data-admin-view="dashboard" class="nav-btn active">▦ <span>Dashboard</span></button>
         <button data-admin-view="clients" class="nav-btn">◎ <span>Employers</span></button>
+        <button data-admin-view="prompts" class="nav-btn">⌘ <span>Prompt Library</span></button>
         <button data-admin-view="tasks" class="nav-btn">☷ <span>Task Inbox</span><b id="taskBadge" class="badge hidden">0</b></button>
         <button data-admin-view="time" class="nav-btn">◷ <span>Time Log</span></button>
         <button data-admin-view="invoices" class="nav-btn">▤ <span>Invoices</span></button>
@@ -51,6 +69,7 @@
       <div class="brand mobile-nav-brand"><img src="assets/jeffdesign101-logo.png"><div><strong>Jeffdesign101</strong><small>Employer Portal</small></div></div>
       <nav class="mobile-side-links">
         <button data-employer-view="overview" class="nav-btn active">◈ <span>Overview</span></button>
+        <button data-employer-view="website" class="nav-btn">▧ <span>Website Projects</span></button>
         <button data-employer-view="tasks" class="nav-btn">☷ <span>Tasks</span></button>
         <button data-employer-view="files" class="nav-btn">⛁ <span>Files</span></button>
         <button data-employer-view="work" class="nav-btn">◷ <span>Work Monitor</span></button>
@@ -70,6 +89,7 @@
 
       <div id="employerTabs" class="employer-tabs glass hidden">
         <button data-employer-view="overview" class="active">Overview</button>
+        <button data-employer-view="website">Website Projects</button>
         <button data-employer-view="tasks">Tasks</button>
         <button data-employer-view="files">Files</button>
         <button data-employer-view="work">Work Monitor</button>
@@ -133,6 +153,28 @@
     </div>
   </div>
 
+
+  <div id="showcaseModal" class="modal-backdrop hidden">
+    <div class="modal glass showcase-admin-modal">
+      <div class="modal-head"><div><small>PROJECT SHOWCASE</small><h3>Website Preview for Employer</h3></div><button type="button" data-close="showcaseModal" class="icon-btn">×</button></div>
+      <input id="showcaseClientId" type="hidden"><input id="showcaseProjectId" type="hidden">
+      <div class="field"><span>Live / staging website link</span><input id="showcaseUrl" type="url" placeholder="https://preview.example.com"></div>
+      <div class="field"><span>Update / message for Employer</span><textarea id="showcaseNotes" rows="4" placeholder="Latest homepage design is ready for review…"></textarea></div>
+      <div class="showcase-admin-grid">
+        <section class="showcase-admin-section"><span class="section-label">WEBSITE LOGO</span><h4>Logo Preview</h4><div id="showcaseLogoPreview"></div><label class="website-dropzone compact-dropzone"><strong>Upload / Replace Logo</strong><span>PNG, JPG, WEBP, SVG</span><input id="showcaseLogoInput" type="file" accept="image/*,.svg" hidden></label></section>
+        <section class="showcase-admin-section"><span class="section-label">SCREENSHOT GALLERY</span><h4>Website Screenshots</h4><div id="showcaseGalleryPreview" class="showcase-admin-gallery"></div><label class="website-dropzone compact-dropzone"><strong>+ Add Screenshots</strong><span>Select multiple images</span><input id="showcaseGalleryInput" type="file" accept="image/*" multiple hidden></label></section>
+      </div>
+      <label class="showcase-publish-toggle"><input id="showcasePublished" type="checkbox"><span><strong>Show this showcase to Employer</strong><small>Employer will see the logo, site link and moving screenshot gallery.</small></span></label>
+      <div class="modal-actions"><button type="button" data-close="showcaseModal" class="btn ghost">Cancel</button><button type="button" class="btn primary" data-action="save-project-showcase">Save Showcase</button></div>
+    </div>
+  </div>
+
+  <div id="showcaseLightbox" class="showcase-lightbox hidden" role="dialog" aria-modal="true" aria-label="Website preview">
+    <button type="button" class="showcase-lightbox-close" data-close="showcaseLightbox" aria-label="Close preview">×</button>
+    <div id="showcaseBgControls" class="showcase-bg-controls hidden"><button type="button" class="mini-btn active" data-action="showcase-logo-bg" data-showcase-bg="light">White Background</button><button type="button" class="mini-btn" data-action="showcase-logo-bg" data-showcase-bg="dark">Dark Background</button></div>
+    <div id="showcaseLightboxStage" class="showcase-lightbox-stage light-logo-bg"><img id="showcaseLightboxImage" alt="Website preview"></div>
+  </div>
+
   <div id="invoiceModal" class="modal-backdrop hidden"><div class="modal invoice-modal"><div class="modal-head dark-head"><div><small>INVOICE PREVIEW</small><h3>Professional Invoice</h3></div><button data-close="invoiceModal" class="icon-btn">×</button></div><div id="invoiceModalBody"></div></div></div>
 
   <div id="statusDock" class="status-dock hidden">
@@ -169,7 +211,7 @@
 
   <script src="config.js?v=clean-v1"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=v2.10-time-edit"></script>
+  <script src="app.js?v=v2.14-project-showcase"></script>
   <script src="pwa.js?v=v2.3"></script>
 </body>
 </html>

@@ -1,3 +1,12 @@
+# Jeffdesign101 v2.14 — Project Showcase
+
+Adds an Admin-controlled ongoing website showcase with logo preview, staging/live link, automatic screenshot carousel, fullscreen image preview, and white/dark logo background inspection.
+
+## Upgrade from v2.13
+1. Run `V2.14-PROJECT-SHOWCASE-PATCH.sql` once in Supabase SQL Editor.
+2. Deploy all v2.14 frontend files.
+3. If installed as a PWA, fully close and reopen after deployment.
+
 # Jeffdesign101 CRM / Employer Portal — v2 Modern
 
 A production-focused upgrade of the clean rebuild. It remains **zero-build** and GitHub-Pages-friendly while using Supabase for authentication, RLS, storage and data.
@@ -89,3 +98,12 @@ Because this is a static frontend, serve the directory with any local static ser
 Admin Time Log entries now include an Edit action. You can correct employer, task/description, start date/time, end date/time, and hourly rate. Duration is recalculated automatically. Active sessions may keep the end time blank. Invoiced entries display a warning because editing the time log does not retroactively recalculate an already-created invoice.
 
 No database migration is required when using the existing `time_admin_all` RLS policy from the clean migration.
+
+
+## v2.12 Website Workspace
+
+Adds an Admin Prompt Library and an Employer Website Project intake workspace. Before using these new pages, run `V2.12-WEBSITE-WORKSPACE-PATCH.sql` once in Supabase SQL Editor. Existing data is preserved. Website assets use the existing private `client-files` storage bucket under `<client-id>/website-assets/`.
+
+## v2.13 Multi Website Projects
+
+Run `V2.13-MULTI-WEBSITE-PROJECTS-PATCH.sql` after v2.12. Employers can then create multiple Website Projects, each with its own intake, notes, status, and assets. Admin Employer Details shows every project and provides Copy Full Intake per project. Existing v2.12 intake data is migrated automatically when possible; previous v2.12 website assets are preserved as legacy uploads.
