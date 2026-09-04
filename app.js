@@ -1,4 +1,4 @@
-const BUILD="v2.14.1-employer-login-hotfix";
+const BUILD="v2.15-visual-experience";
 const cfg=window.LIME_CRM_CONFIG||{};
 const $=id=>document.getElementById(id);
 const $$=q=>[...document.querySelectorAll(q)];
@@ -129,18 +129,19 @@ function configureRoleUI(){
 }
 
 function setPageTitle(t){$("pageTitle").textContent=t}
+function showPageError(name,error){console.error(`[${name}]`,error);const v=$("view");if(v)v.innerHTML=`<section class="page-shell"><article class="card glass page-error"><span class="section-label">PAGE ERROR</span><h2>${esc(name)} could not load</h2><p class="muted">${esc(error?.message||"Unexpected page error")}</p><button class="btn primary" data-action="home">Return Home</button></article></section>`;toast(`${name} could not load`)}
+function runPage(name,fn){try{const result=fn();if(result&&typeof result.catch==="function")result.catch(error=>showPageError(name,error))}catch(error){showPageError(name,error)}}
 function renderAdmin(view){
   state.navSeq++;state.adminView=view;
   $$("[data-admin-view]").forEach(b=>b.classList.toggle("active",b.dataset.adminView===view));
-  const map={dashboard:renderDashboard,clients:renderClients,prompts:renderPromptLibrary,tasks:renderTaskInbox,time:renderTimePage,invoices:renderAdminInvoices,billing:renderBilling,trash:renderTrash};
-  map[view]?.();
+  const map={dashboard:()=>renderDashboard(),clients:()=>renderClients(),prompts:()=>renderPromptLibrary(),tasks:()=>renderTaskInbox(),time:()=>renderTimePage(),invoices:()=>renderAdminInvoices(),billing:()=>renderBilling(),trash:()=>renderTrash()};
+  closeMobileNav();runPage(`Admin ${view}`,map[view]||map.dashboard);
 }
 function renderEmployer(view){
   state.navSeq++;state.employerView=view;
   $$("[data-employer-view]").forEach(b=>b.classList.toggle("active",b.dataset.employerView===view));
-  closeMobileNav();
-  const map={overview:renderEmployerOverview,website:renderEmployerWebsiteProject,tasks:renderEmployerTasks,files:renderEmployerFiles,work:renderEmployerWork,invoices:renderEmployerInvoices,account:renderEmployerAccount};
-  map[view]?.();
+  const map={overview:()=>renderEmployerOverview(),website:()=>renderEmployerWebsiteProject(),tasks:()=>renderEmployerTasks(),files:()=>renderEmployerFiles(),work:()=>renderEmployerWork(),invoices:()=>renderEmployerInvoices(),account:()=>renderEmployerAccount()};
+  closeMobileNav();runPage(`Employer ${view}`,map[view]||map.overview);
 }
 
 function statusPill(s){const label={ongoing:"Active",paused:"Paused",complete:"Complete"}[s]||s;return`<span class="status ${esc(s)}">${esc(label)}</span>`}
@@ -152,23 +153,52 @@ function monthStart(){const d=new Date();return new Date(d.getFullYear(),d.getMo
 function sumHours(list,start=null){return list.filter(e=>!start||new Date(e.clock_in)>=start).reduce((s,e)=>s+hoursOf(e),0)}
 function dur(h){const m=Math.round(h*60);return`${Math.floor(m/60)}h ${String(m%60).padStart(2,"0")}m`}
 
+function clamp(n,min=0,max=100){return Math.max(min,Math.min(max,Number(n)||0))}
+function pct(part,total){return total?Math.round((Number(part||0)/Number(total))*100):0}
+function progressRing(value,label="Progress",sub=""){
+  const v=clamp(value);
+  return `<div class="progress-ring" style="--p:${v}" role="img" aria-label="${esc(label)} ${v}%"><div><strong>${v}%</strong><span>${esc(label)}</span>${sub?`<small>${esc(sub)}</small>`:""}</div></div>`;
+}
+function projectCompletion(project){
+  const intake=project?.website_intake&&typeof project.website_intake==="object"?project.website_intake:{};
+  const answered=WEBSITE_INTAKE_SECTIONS.filter(s=>String(intakeValue(intake,s.id)||"").trim()).length;
+  const base=WEBSITE_INTAKE_SECTIONS.length?Math.round(answered/WEBSITE_INTAKE_SECTIONS.length*82):0;
+  const notes=String(project?.website_notes||"").trim()?6:0;
+  const statusBonus={draft:0,in_progress:5,ready:10,complete:12}[project?.status]||0;
+  return clamp(base+notes+statusBonus);
+}
+function lastSevenDayHours(list){
+  const out=[];for(let back=6;back>=0;back--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-back);const next=new Date(d);next.setDate(next.getDate()+1);const hours=list.filter(e=>{const t=new Date(e.clock_in);return t>=d&&t<next}).reduce((s,e)=>s+hoursOf(e),0);out.push({label:d.toLocaleDateString(undefined,{weekday:"narrow"}),hours})}return out;
+}
+function miniBars(data){const max=Math.max(1,...data.map(x=>x.hours));return `<div class="mini-bars" aria-label="Work hours for the last seven days">${data.map(x=>`<div class="mini-bar-col"><span class="mini-bar-value">${x.hours?x.hours.toFixed(1):""}</span><i style="height:${Math.max(6,Math.round(x.hours/max*100))}%"></i><b>${esc(x.label)}</b></div>`).join("")}</div>`}
+function metricVisual(icon,label,value,detail="",tone="lime"){return `<article class="visual-stat glass tone-${tone}"><div class="visual-stat-top"><span class="visual-icon">${icon}</span><span class="visual-pulse"></span></div><strong>${value}</strong><span>${esc(label)}</span>${detail?`<small>${esc(detail)}</small>`:""}</article>`}
+
 function renderDashboard(){
   setPageTitle("Dashboard");
-  const active=state.time.filter(e=>!e.clock_out),open=state.tasks.filter(t=>!t.done),pending=state.invoices.filter(i=>i.status==="pending");
+  const active=state.time.filter(e=>!e.clock_out),open=state.tasks.filter(t=>!t.done),pending=state.invoices.filter(i=>i.status==="pending"),done=state.tasks.filter(t=>t.done);
+  const taskPercent=pct(done.length,state.tasks.length),outstanding=pending.reduce((s,i)=>s+Number(i.total||0),0),weekHours=sumHours(state.time,weekStart()),bars=lastSevenDayHours(state.time);
   $("taskBadge").textContent=state.tasks.filter(t=>!t.admin_seen_at).length;
   $("taskBadge").classList.toggle("hidden",!state.tasks.some(t=>!t.admin_seen_at));
-  $("view").innerHTML=`
-    <div class="hero glass"><div><span class="section-label">JEFFDESIGN101</span><h1>VA work, organized clearly.</h1><p>Employer requests, time tracking, files and billing in one stable workspace.</p></div><button class="btn primary" data-action="new-client">+ Add Employer</button></div>
-    <div class="stats">
-      <div class="stat glass"><span>Employers</span><strong>${state.clients.length}</strong></div>
-      <div class="stat glass"><span>Open tasks</span><strong>${open.length}</strong></div>
-      <div class="stat glass"><span>Active sessions</span><strong>${active.length}</strong></div>
-      <div class="stat glass"><span>Outstanding</span><strong>${money(pending.reduce((s,i)=>s+Number(i.total||0),0))}</strong></div>
+  $("view").innerHTML=`<section class="page-shell visual-dashboard">
+    <section class="agency-hero glass">
+      <div class="agency-hero-copy"><span class="section-label">JEFFDESIGN101 CONTROL CENTER</span><h1>Build, track and deliver—<em>all in one view.</em></h1><p>Your live workspace for employer requests, website projects, hours and billing.</p><div class="agency-hero-actions"><button class="btn primary" data-action="new-client">+ Add Employer</button><button class="btn ghost" data-admin-view="time">Open Time Log</button></div></div>
+      <div class="agency-orbit" aria-hidden="true"><span class="orbit-core">JD</span><i class="orbit orbit-a"></i><i class="orbit orbit-b"></i><b class="orbit-node node-a">⌁</b><b class="orbit-node node-b">◷</b><b class="orbit-node node-c">▤</b></div>
+    </section>
+    <div class="visual-stats-grid">
+      ${metricVisual("◎","Employers",state.clients.length,state.clients.length?"Active workspace":"Ready for your first client","lime")}
+      ${metricVisual("☷","Open Tasks",open.length,`${done.length} completed`,"blue")}
+      ${metricVisual("◷","This Week",dur(weekHours),`${active.length} active now`,"violet")}
+      ${metricVisual("$","Outstanding",money(outstanding),`${pending.length} invoice${pending.length===1?"":"s"}`,"gold")}
+    </div>
+    <div class="analytics-grid">
+      <article class="card glass chart-card"><div class="section-head"><div><span class="section-label">WORK RHYTHM</span><h3>Last 7 days</h3></div><span class="status">${dur(bars.reduce((s,x)=>s+x.hours,0))}</span></div>${miniBars(bars)}</article>
+      <article class="card glass completion-card"><div><span class="section-label">TASK FLOW</span><h3>Completion rate</h3><p class="muted">A quick view of request throughput.</p></div>${progressRing(taskPercent,"Complete",`${done.length}/${state.tasks.length||0} tasks`)}</article>
     </div>
     <div class="grid2">
       <article class="card glass"><div class="section-head"><div><span class="section-label">TASK INBOX</span><h3>Latest employer requests</h3></div><button class="mini-btn" data-admin-view="tasks">Open inbox</button></div>${taskListHtml(open.slice(0,5),true)}</article>
-      <article class="card glass"><span class="section-label">ACTIVE WORK</span><h3>Running timers</h3>${active.length?active.map(activeSessionHtml).join(""):'<div class="empty"><strong>No active session</strong>Start work from Time Log.</div>'}</article>
-    </div>`;
+      <article class="card glass"><div class="section-head"><div><span class="section-label">ACTIVE WORK</span><h3>Running timers</h3></div>${active.length?'<span class="live-chip"><i></i> LIVE</span>':''}</div>${active.length?active.map(activeSessionHtml).join(""):'<div class="visual-empty"><span>◷</span><strong>No active session</strong><p>Start work from Time Log when you are ready.</p><button class="mini-btn" data-admin-view="time">Open Time Log</button></div>'}</article>
+    </div>
+  </section>`;
 }
 
 function renderClients(){
@@ -237,30 +267,86 @@ async function deletePrompt(id){const p=(state.prompts||[]).find(x=>x.id===id);i
 
 async function listWebsiteProjects(clientId){if(!clientId)return[];const {data,error}=await state.sb.from("website_projects").select("*").eq("client_id",clientId).order("updated_at",{ascending:false});if(error){console.warn(error);throw error}return data||[]}
 async function getWebsiteProject(projectId){if(!projectId)return null;const {data,error}=await state.sb.from("website_projects").select("*").eq("id",projectId).maybeSingle();if(error)throw error;return data}
+
+function renderTaskInbox(){
+  setPageTitle("Task Inbox");
+  const unread=state.tasks.filter(t=>!t.admin_seen_at).length;
+  $("taskBadge").textContent=unread;$("taskBadge").classList.toggle("hidden",!unread);
+  $("view").innerHTML=`<section class="page-shell"><div class="page-head"><div><span class="section-label">EMPLOYER REQUESTS</span><h1>Task Inbox</h1><p class="muted">Review, open, and complete requests from every employer.</p></div><div class="page-head-actions"><select id="taskFilter" aria-label="Filter tasks"><option value="all">All tasks</option><option value="unread">Unread</option><option value="open">Open</option><option value="done">Completed</option></select></div></div><article class="card glass"><div id="taskInboxRows" class="table-list"></div></article></section>`;
+  renderTaskInboxRows();
+}
+function renderTaskInboxRows(){
+  const box=$("taskInboxRows");if(!box)return;
+  const f=$("taskFilter")?.value||"all";
+  const list=state.tasks.filter(t=>f==="all"||f==="unread"&&!t.admin_seen_at||f==="open"&&!t.done||f==="done"&&t.done);
+  box.innerHTML=list.length?list.map(t=>`<article class="row-card mobile-stack"><div class="row-main"><strong class="rich-task-title">${richTitleHtml(t.task)}</strong><small>${esc(stripHtml(t.details||"")).slice(0,160)}${stripHtml(t.details||"").length>160?"…":""}</small></div><div><strong>${esc(clientName(t.client_id))}</strong><small>${esc(t.priority||"Normal")}</small></div><div class="status-group">${t.done?'<span class="status complete">Completed</span>':'<span class="status">Open</span>'}${!t.admin_seen_at?' <span class="status">New</span>':""}</div><div class="row-actions"><button class="mini-btn" data-action="view-task" data-id="${t.id}">Open</button><button class="mini-btn" data-action="toggle-task" data-id="${t.id}">${t.done?"Reopen":"Mark Done"}</button></div></article>`).join(""):'<div class="empty"><strong>No tasks found</strong><p>Requests will appear here when employers send them.</p></div>';
+}
+
+function renderTimePage(){
+  setPageTitle("Time Log");
+  const active=state.time.filter(e=>!e.clock_out),rate=Number(state.billing?.hourly_rate||3);
+  $("view").innerHTML=`<section class="page-shell"><div class="page-head"><div><span class="section-label">WORK TRACKING</span><h1>Time Log</h1><p class="muted">Track live sessions, add manual work, and correct recorded time.</p></div></div>
+    <div class="stats"><div class="stat glass"><span>Today</span><strong>${dur(sumHours(state.time,todayStart()))}</strong></div><div class="stat glass"><span>This week</span><strong>${dur(sumHours(state.time,weekStart()))}</strong></div><div class="stat glass"><span>Rate</span><strong>${money(rate)}/h</strong></div><div class="stat glass"><span>Active</span><strong>${active.length}</strong></div></div>
+    <div class="grid2"><article class="card glass"><span class="section-label">START / STOP</span><h3>Work session</h3><div class="field"><span>Employer</span><select id="timerClient"><option value="">Select employer</option>${state.clients.map(c=>`<option value="${c.id}">${esc(c.name)}${active.some(a=>a.client_id===c.id)?" • ACTIVE":""}</option>`).join("")}</select></div><div class="field"><span>Task</span><input id="timerTask" placeholder="What are you working on?"></div><div class="row-actions start-actions"><button class="btn primary" data-action="clock-in">Start Work</button><button class="btn danger" data-action="clock-out-selected">Stop Selected</button></div></article>
+    <article class="card glass"><span class="section-label">MANUAL ENTRY</span><h3>Add hours worked</h3><div class="form-grid"><div class="field"><span>Employer</span><select id="manualClient"><option value="">Select employer</option>${state.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></div><div class="field"><span>Date</span><input id="manualDate" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="field"><span>Hours</span><input id="manualHours" type="number" min=".01" step=".25"></div><div class="field"><span>Rate</span><input id="manualRate" type="number" min="0" step=".01" value="${rate.toFixed(2)}"></div></div><div class="field"><span>Description</span><input id="manualTask" placeholder="Work description"></div><button class="btn primary" data-action="manual-hours" style="margin-top:12px">Add Hours</button></article></div>
+    <article class="card glass section-card"><div class="section-head"><div><span class="section-label">ACTIVE SESSIONS</span><h3>Running timers</h3></div><span class="status">${active.length} active</span></div><div id="activeSessions">${active.length?active.map(activeSessionHtml).join(""):'<div class="empty"><strong>No active sessions</strong></div>'}</div></article>
+    <article class="card glass section-card"><div class="section-head"><div><span class="section-label">WORK HISTORY</span><h3>Recent entries</h3></div></div><div class="table-list">${state.time.slice(0,50).map(e=>`<article class="row-card mobile-stack"><div><strong>${esc(clientName(e.client_id))}</strong><small>${esc(e.task||"General work")}</small></div><div><strong>${fmtDate(e.clock_in)}</strong><small>${fmtTime(e.clock_in)}${e.clock_out?" → "+fmtTime(e.clock_out):" → active"}</small></div><div><strong>${dur(hoursOf(e))}</strong><small>${money(e.hourly_rate||rate)}/h</small></div><div class="row-actions">${e.invoice_id?'<span class="status complete">Invoiced</span>':e.clock_out?'<span class="status">Uninvoiced</span>':'<span class="status">Running</span>'}<button class="mini-btn" data-action="edit-time-entry" data-id="${e.id}">Edit</button></div></article>`).join("")||'<div class="empty"><strong>No work entries yet</strong></div>'}</div></article></section>`;
+  startTicker();
+}
+function activeSessionHtml(e){return`<div class="active-session"><div><strong>${esc(clientName(e.client_id))}</strong><small class="muted">${esc(e.task||"General work")}</small></div><div><span class="muted">Started</span><strong>${fmtTime(e.clock_in)}</strong></div><div class="live-time" data-session-clock="${e.id}">00:00:00</div><div class="row-actions"><button class="mini-btn" data-action="edit-time-entry" data-id="${e.id}">Edit</button><button class="mini-btn" data-action="stop-session" data-id="${e.id}">Stop</button></div></div>`}
+
+function renderAdminInvoices(){
+  setPageTitle("Invoices");
+  const pending=state.invoices.filter(i=>i.status==="pending"),paid=state.invoices.filter(i=>i.status==="paid"),rate=Number(state.billing?.hourly_rate||3);
+  $("view").innerHTML=`<section class="page-shell"><div class="page-head"><div><span class="section-label">BILLING</span><h1>Invoices</h1><p class="muted">Create, preview, review, and mark client invoices as paid.</p></div></div>
+    <div class="stats"><div class="stat glass"><span>Incoming</span><strong>${pending.length}</strong></div><div class="stat glass"><span>Paid</span><strong>${paid.length}</strong></div><div class="stat glass"><span>Outstanding</span><strong>${money(pending.reduce((s,i)=>s+Number(i.total||0),0))}</strong></div><div class="stat glass"><span>Total paid</span><strong>${money(paid.reduce((s,i)=>s+Number(i.total||0),0))}</strong></div></div>
+    <article class="card glass section-card"><div class="section-head"><div><span class="section-label">CREATE INVOICE</span><h3>Generate invoice</h3></div></div><div class="form-grid"><div class="field"><span>Employer</span><select id="invoiceClient"><option value="">Select employer</option>${state.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></div><div class="field"><span>Invoice #</span><input id="invoiceNumber" value="${nextInvoiceNumber()}"></div><div class="field"><span>Invoice date</span><input id="invoiceDate" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="field"><span>Hours source</span><select id="invoiceMode"><option value="time">Use Time Log</option><option value="manual">Enter Hours Manually</option></select></div><div class="field"><span>Period start</span><input id="invoiceStart" type="date"></div><div class="field"><span>Period end</span><input id="invoiceEnd" type="date"></div><div class="field"><span>Manual hours</span><input id="invoiceManualHours" type="number" min=".01" step=".25" disabled></div><div class="field"><span>Hourly rate</span><input id="invoiceRate" type="number" min="0" step=".01" value="${rate.toFixed(2)}"></div></div><div class="field"><span>Description</span><input id="invoiceDescription" value="Online Web Work"></div><div class="field"><span>Notes / payment instructions</span><textarea id="invoiceNotes" rows="4">${esc(state.billing?.payment_instructions||"")}</textarea></div><div class="invoice-create-footer"><div class="invoice-live-total"><span id="invoiceHoursPreview">0.00 hrs</span><strong id="invoiceTotalPreview">$0.00</strong></div><div class="row-actions"><button class="btn ghost" data-action="preview-invoice">Preview</button><button class="btn primary" data-action="create-invoice">Create Invoice</button></div></div></article>
+    <article class="card glass section-card"><div class="section-head"><div><span class="section-label">BILLING HISTORY</span><h3>Invoices</h3></div><span class="status">${state.invoices.length} total</span></div>${invoiceRows(state.invoices,true)}</article></section>`;
+  updateInvoicePreview();
+}
+function invoiceRows(list,admin){return`<div class="table-list">${list.length?list.map(i=>`<article class="row-card mobile-stack"><div><strong>${esc(i.invoice_number)}</strong><small>${esc(clientName(i.client_id))} · ${esc(i.description||"Online Work")}</small></div><div><strong>${fmtDate(i.invoice_date)}</strong><small>${i.period_start?fmtDate(i.period_start)+" — "+fmtDate(i.period_end):"No billing period"}</small></div><div><strong>${money(i.total)}</strong><small>${Number(i.hours||0).toFixed(2)} hrs · ${money(i.hourly_rate)}/h</small></div><div class="row-actions"><span class="status ${i.status==="paid"?"complete":""}">${i.status==="paid"?"Paid":"Incoming"}</span><button class="mini-btn" data-action="view-invoice" data-id="${i.id}">View</button>${admin&&i.status!=="paid"?`<button class="mini-btn" data-action="mark-paid" data-id="${i.id}">Mark Paid</button>`:""}</div></article>`).join(""):'<div class="empty"><strong>No invoices yet</strong><p>Create your first invoice above.</p></div>'}</div>`}
+
+function renderBilling(){
+  setPageTitle("Rate & Billing");const b=state.billing||{};
+  $("view").innerHTML=`<section class="page-shell"><div class="page-head"><div><span class="section-label">BILLING PROFILE</span><h1>Rate & Billing</h1><p class="muted">Manage your hourly rate and the business details shown on invoices.</p></div></div><article class="card glass"><div class="form-grid"><div class="field"><span>Hourly rate USD</span><input id="billRate" type="number" step=".01" value="${Number(b.hourly_rate||3)}"></div><div class="field"><span>Business / VA name</span><input id="billBusiness" value="${esc(b.business_name||"Jeffdesign101 / Webdev VA")}"></div><div class="field"><span>Your full name</span><input id="billName" value="${esc(b.full_name||"")}"></div><div class="field"><span>Email shown on invoice</span><input id="billEmail" value="${esc(b.email||"")}"></div><div class="field"><span>Phone</span><input id="billPhone" value="${esc(b.phone||"")}"></div><div class="field"><span>Address</span><input id="billAddress" value="${esc(b.address||"")}"></div></div><div class="field"><span>Payment instructions</span><textarea id="billPayment" rows="5">${esc(b.payment_instructions||"")}</textarea></div><div class="card-actions start"><button class="btn primary" data-action="save-billing">Save Billing Settings</button></div></article></section>`;
+}
+async function renderTrash(){
+  const seq=state.navSeq;setPageTitle("Trash");
+  const {data,error}=await state.sb.from("clients").select("*").not("deleted_at","is",null).order("deleted_at",{ascending:false});if(error){toast(error.message);return}if(seq!==state.navSeq)return;
+  $("view").innerHTML=`<section class="page-shell"><div class="page-head"><div><span class="section-label">ARCHIVE</span><h1>Trash</h1><p class="muted">Restore employers that were previously removed from the active workspace.</p></div></div><article class="card glass"><div class="table-list">${(data||[]).map(c=>`<article class="row-card mobile-stack"><div><strong>${esc(c.name)}</strong><small>${esc(c.company||"")}</small></div><div>${statusPill(c.status)}</div><div><small>Deleted ${fmtDate(c.deleted_at)}</small></div><div class="row-actions"><button class="mini-btn" data-action="restore-client" data-id="${c.id}">Restore</button></div></article>`).join("")||'<div class="empty"><strong>Trash is empty</strong></div>'}</div></article></section>`;
+}
+
 async function renderEmployerOverview(){
-  const seq=state.navSeq;
-  setPageTitle("Employer Portal");
-  const c=currentClient();
-  if(!c){
-    $("view").innerHTML='<div class="empty"><strong>No project linked</strong></div>';
-    return;
-  }
-  const [sub,files]=await Promise.all([getSubmission(c.id),listFiles(c.id)]);
-  const tasks=state.tasks.filter(t=>t.client_id===c.id);
-  const editable=c.portal_permission!=="view";
+  const seq=state.navSeq;setPageTitle("Employer Portal");const c=currentClient();
+  if(!c){$("view").innerHTML='<div class="empty"><strong>No project linked</strong></div>';return}
+  let projects=[];let sub,files;
+  try{[sub,files,projects]=await Promise.all([getSubmission(c.id),listFiles(c.id),listWebsiteProjects(c.id)])}catch(e){[sub,files]=await Promise.all([getSubmission(c.id),listFiles(c.id)]);projects=[]}
+  const tasks=state.tasks.filter(t=>t.client_id===c.id),editable=c.portal_permission!=="view",pending=state.invoices.filter(i=>i.client_id===c.id&&i.status==="pending"),done=tasks.filter(t=>t.done);
   if(seq!==state.navSeq)return;
-  $("view").innerHTML=`
-    <article class="card glass"><div class="section-head"><div><span class="section-label">EMPLOYER PROJECT</span><h3>${esc(c.name)}</h3><p class="muted">${esc(c.company||c.project_type||"Website project")}</p></div><div class="row-actions">${["ongoing","paused","complete"].map(s=>`<button class="mini-btn ${c.status===s?"active":""}" data-action="employer-status" data-status="${s}" ${editable?"":"disabled"}>${s==="ongoing"?"Active":s[0].toUpperCase()+s.slice(1)}</button>`).join("")}</div></div></article>
-    <div class="stats"><div class="stat glass"><span>Open requests</span><strong>${tasks.filter(t=>!t.done).length}</strong></div><div class="stat glass"><span>Completed</span><strong>${tasks.filter(t=>t.done).length}</strong></div><div class="stat glass"><span>Incoming invoices</span><strong>${state.invoices.filter(i=>i.client_id===c.id&&i.status==="pending").length}</strong></div><div class="stat glass"><span>Amount due</span><strong>${money(state.invoices.filter(i=>i.client_id===c.id&&i.status==="pending").reduce((s,i)=>s+Number(i.total||0),0))}</strong></div></div>
-    <div class="grid2">
-      <article class="card glass"><span class="section-label">CURRENT REQUEST</span><h3>Send a task to your VA</h3>${editable?taskComposerHtml("overview"):'<p class="muted">This portal is View Only.</p>'}</article>
-      <article class="card glass"><span class="section-label">CURRENT REQUESTS</span><h3>Tasks you've sent</h3>${taskListHtml(tasks.slice(0,5),false,editable)}</article>
+  const avgProgress=projects.length?Math.round(projects.reduce((s,p)=>s+projectCompletion(p),0)/projects.length):0,showcases=projects.filter(p=>p.showcase_published).length;
+  $("view").innerHTML=`<section class="page-shell employer-experience">
+    <section class="client-hero glass">
+      <div class="client-hero-copy"><span class="section-label">YOUR PROJECT PORTAL</span><h1>${esc(c.company||c.name)}</h1><p>${esc(c.project_type||"Website collaboration workspace")} · everything your VA needs, organized in one place.</p><div class="client-status-actions">${["ongoing","paused","complete"].map(s=>`<button class="mini-btn ${c.status===s?"active":""}" data-action="employer-status" data-status="${s}" ${editable?"":"disabled"}>${s==="ongoing"?"Active":s[0].toUpperCase()+s.slice(1)}</button>`).join("")}</div></div>
+      <div class="client-hero-visual">${progressRing(avgProgress,"Project Ready",projects.length?`${projects.length} website project${projects.length===1?"":"s"}`:"Start a project")}</div>
+    </section>
+    <div class="visual-stats-grid employer-kpis">
+      ${metricVisual("☷","Open Requests",tasks.filter(t=>!t.done).length,`${done.length} completed`,"blue")}
+      ${metricVisual("◈","Website Projects",projects.length,`${showcases} showcase${showcases===1?"":"s"} live`,"lime")}
+      ${metricVisual("▤","Incoming Invoices",pending.length,pending.length?"Awaiting payment":"Nothing due","violet")}
+      ${metricVisual("$","Amount Due",money(pending.reduce((s,i)=>s+Number(i.total||0),0)),"Current balance","gold")}
     </div>
-    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">PROJECT INFORMATION</span><h3>Website information & instructions</h3>${editable?officeEditorHtml("projectInfo",sub?.project_information||"","Hosting details, admin access, content notes, feature requests, URLs, and everything your VA needs…","save-project-info","Save Information"):`<div class="read-block rich-output">${richStoredHtml(sub?.project_information||"No project information yet.")}</div>`}</article>
-    <article class="card glass section-panel" style="margin-top:13px"><span class="section-label">SHARED NOTES</span><h3>Notes for your VA</h3>${editable?officeEditorHtml("sharedNotes",sub?.shared_notes||"","Share reminders, follow-ups, revisions, deadlines, or anything your VA should remember…","save-shared-notes","Save Notes"):`<div class="read-block rich-output">${richStoredHtml(sub?.shared_notes||"No notes yet.")}</div>`}</article>
-    <article class="card glass" style="margin-top:13px"><div class="section-head"><div><span class="section-label">FILES</span><h3>Send files to your VA</h3></div>${editable?'<label class="btn primary">+ Upload Files<input id="overviewFiles" type="file" multiple hidden></label>':""}</div>${fileListHtml(files,c,editable)}</article>`;
-  setupRichEditors();
-  updateStatusDock();
+    ${projects.length?`<article class="card glass project-snapshot"><div class="section-head"><div><span class="section-label">WEBSITE PROJECTS</span><h3>Your active workspace</h3><p class="muted">Tap a project to continue the intake or review the latest showcase.</p></div><button class="mini-btn" data-employer-view="website">View all</button></div><div class="project-snapshot-grid">${projects.slice(0,3).map(p=>`<button class="project-snapshot-card" data-action="open-website-project" data-id="${p.id}"><span class="project-snapshot-top">${websiteProjectStatusPill(p.status)}${p.showcase_published?'<b>● Preview live</b>':''}</span><strong>${esc(p.website_name||"Untitled Website")}</strong><small>${projectCompletion(p)}% intake progress</small><i><em style="width:${projectCompletion(p)}%"></em></i></button>`).join("")}</div></article>`:""}
+    <div class="grid2">
+      <article class="card glass request-compose-card"><span class="section-label">CURRENT REQUEST</span><h3>Send a task to your VA</h3><p class="muted">Share a request, revision or next action.</p>${editable?taskComposerHtml("overview"):'<p class="muted">This portal is View Only.</p>'}</article>
+      <article class="card glass"><div class="section-head"><div><span class="section-label">REQUESTS</span><h3>Latest tasks</h3></div><button class="mini-btn" data-employer-view="tasks">View all</button></div>${taskListHtml(tasks.slice(0,5),false,editable)}</article>
+    </div>
+    <div class="grid2 employer-info-grid">
+      <article class="card glass section-panel"><span class="section-label">PROJECT INFORMATION</span><h3>Website information & instructions</h3>${editable?officeEditorHtml("projectInfo",sub?.project_information||"","Hosting details, admin access, content notes, feature requests, URLs, and everything your VA needs…","save-project-info","Save Information"):`<div class="read-block rich-output">${richStoredHtml(sub?.project_information||"No project information yet.")}</div>`}</article>
+      <article class="card glass section-panel"><span class="section-label">SHARED NOTES</span><h3>Notes for your VA</h3>${editable?officeEditorHtml("sharedNotes",sub?.shared_notes||"","Share reminders, follow-ups, revisions, deadlines, or anything your VA should remember…","save-shared-notes","Save Notes"):`<div class="read-block rich-output">${richStoredHtml(sub?.shared_notes||"No notes yet.")}</div>`}</article>
+    </div>
+    <article class="card glass"><div class="section-head"><div><span class="section-label">FILES</span><h3>Shared project files</h3><p class="muted">Logos, documents, screenshots and source materials.</p></div>${editable?'<label class="btn primary">+ Upload Files<input id="overviewFiles" type="file" multiple hidden></label>':""}</div>${fileListHtml(files,c,editable)}</article>
+  </section>`;
+  setupRichEditors();updateStatusDock();
 }
 
 async function renderEmployerWebsiteProject(){
@@ -270,8 +356,9 @@ async function renderEmployerWebsiteProject(){
   if(selected)return renderEmployerWebsiteProjectEditor(selected,editable);
   $("view").innerHTML=`<article class="card glass website-project-hero"><div><span class="section-label">WEBSITE PROJECTS</span><h3>Your Website Workspace</h3><p class="muted">Create a separate intake for every website, landing page, store, branch, or redesign.</p></div>${editable?'<button class="btn primary" data-action="new-website-project">+ Add Website Project</button>':'<div class="status">View Only</div>'}</article><div class="website-project-list" style="margin-top:13px">${projects.length?projects.map(p=>websiteProjectEmployerCard(p,editable)).join(""):'<article class="card glass empty-project-state"><strong>No website projects yet</strong><p class="muted">Create your first project and complete the website intake checklist.</p>'+(editable?'<button class="btn primary" data-action="new-website-project">+ Add Website Project</button>':'')+'</article>'}</div>${legacyAssets.length?`<article class="card glass legacy-assets-card" style="margin-top:13px"><div class="section-head"><div><span class="section-label">PREVIOUS UPLOADS</span><h3>Assets uploaded before multi-project mode</h3><p class="muted">These files are preserved from your earlier Website Project workspace.</p></div><span class="status">${legacyAssets.length} files</span></div>${legacyWebsiteAssetAdminListHtml(legacyAssets,c)}</article>`:""}`;
 }
-function websiteProjectEmployerCard(project,editable){return `<article class="website-project-card glass"><div class="website-project-card-head"><div><span class="section-label">WEBSITE</span><h3>${esc(project.website_name||"Untitled Website")}</h3><p class="muted">Created ${fmtDate(project.created_at)} · Updated ${fmtDate(project.updated_at)}</p></div>${websiteProjectStatusPill(project.status)}</div><div class="website-project-card-actions"><button class="btn primary" data-action="open-website-project" data-id="${project.id}">Open Project</button>${editable?`<button class="mini-btn danger" data-action="delete-website-project" data-id="${project.id}">Delete</button>`:""}</div></article>`}
-async function createWebsiteProject(){const c=currentClient();if(!c||c.portal_permission==="view")return toast("This portal is View Only");const name=prompt("Website project name",c.company||"New Website Project");if(name===null)return;const payload={client_id:c.id,created_by:state.session.user.id,website_name:name.trim()||"New Website Project",website_intake:{},website_notes:"",status:"draft",updated_at:new Date().toISOString()};const {data,error}=await state.sb.from("website_projects").insert(payload).select("*").single();if(error)return toast(error.message);state.activeWebsiteProject=data.id;toast("Website project created");renderEmployer("website")}
+function websiteProjectEmployerCard(project,editable){const progress=projectCompletion(project);return `<article class="website-project-card glass visual-project-card"><div class="website-project-card-head"><div class="project-card-title"><span class="section-label">WEBSITE PROJECT</span><h3>${esc(project.website_name||"Untitled Website")}</h3><p class="muted">Updated ${fmtDate(project.updated_at)}</p></div>${progressRing(progress,"Intake",project.showcase_published?"Preview available":"In progress")}</div><div class="project-progress-line"><span><b>${progress}%</b> prepared</span><i><em style="width:${progress}%"></em></i></div><div class="project-card-meta">${websiteProjectStatusPill(project.status)}${project.showcase_published?'<span class="status complete">● Showcase Live</span>':'<span class="status">Building</span>'}</div><div class="website-project-card-actions"><button class="btn primary" data-action="open-website-project" data-id="${project.id}">Open Project</button>${editable?`<button class="mini-btn danger" data-action="delete-website-project" data-id="${project.id}">Delete</button>`:""}</div></article>`}
+function openNewWebsiteProjectModal(){const c=currentClient();if(!c||c.portal_permission==="view")return toast("This portal is View Only");$("websiteProjectName").value=c.company||"";$("websiteProjectType").value="Business Website";$("websiteProjectNote").value="";openModal("websiteProjectModal");setTimeout(()=>$("websiteProjectName")?.focus(),60)}
+async function createWebsiteProject(){const c=currentClient();if(!c||c.portal_permission==="view")return toast("This portal is View Only");const name=$("websiteProjectName")?.value.trim()||"",type=$("websiteProjectType")?.value||"Business Website",note=$("websiteProjectNote")?.value.trim()||"";if(!name)return toast("Enter a website project name");const website_notes=[type?`Project type: ${type}`:"",note].filter(Boolean).join("\n\n");const payload={client_id:c.id,created_by:state.session.user.id,website_name:name,website_intake:{},website_notes,status:"draft",updated_at:new Date().toISOString()};const submit=$("websiteProjectForm")?.querySelector('button[type="submit"]');setBusy(submit,true,"Creating…");try{const {data,error}=await state.sb.from("website_projects").insert(payload).select("*").single();if(error)throw error;state.activeWebsiteProject=data.id;closeModal("websiteProjectModal");toast("Website project created");renderEmployer("website")}catch(e){toast(e.message||"Could not create project")}finally{setBusy(submit,false)}}
 async function openWebsiteProject(id){state.activeWebsiteProject=id;renderEmployer("website")}
 function closeWebsiteProject(){state.activeWebsiteProject=null;renderEmployer("website")}
 async function renderEmployerWebsiteProjectEditor(project,editable){
@@ -647,7 +734,8 @@ document.addEventListener("click",async e=>{
   if(!a)return;
   const id=a.dataset.id,act=a.dataset.action;
   try{
-    if(act==="new-client")openClientModal();
+    if(act==="home"){closeMobileNav();roleIsAdmin()?renderAdmin("dashboard"):renderEmployer("overview")}
+    else if(act==="new-client")openClientModal();
     else if(act==="edit-client")openClientModal(id);
     else if(act==="client-detail")await renderClientDetail(id);
     else if(act==="trash-client")await trashClient(id);
@@ -680,7 +768,7 @@ document.addEventListener("click",async e=>{
     else if(act==="cancel-prompt-edit")cancelPromptEdit();
     else if(act==="copy-prompt"){const p=(state.prompts||[]).find(x=>x.id===id);if(p)await copyText(p.prompt_text,"Prompt copied")}
     else if(act==="delete-prompt")await deletePrompt(id);
-    else if(act==="new-website-project")await createWebsiteProject();
+    else if(act==="new-website-project")openNewWebsiteProjectModal();
     else if(act==="open-website-project")await openWebsiteProject(id);
     else if(act==="back-to-website-projects")closeWebsiteProject();
     else if(act==="save-website-project")await saveWebsiteProject(id);
@@ -708,6 +796,7 @@ $("toggleLoginPassword").onclick=()=>{const i=$("loginPassword");i.type=i.type==
 $("toggleTempPassword").onclick=()=>{const i=$("clientTempPassword");i.type=i.type==="password"?"text":"password";$("toggleTempPassword").textContent=i.type==="password"?"Show":"Hide"};
 $("signOutBtn").onclick=()=>state.sb.auth.signOut();
 $("clientForm").addEventListener("submit",async e=>{e.preventDefault();try{await saveClient();closeModal("clientModal");renderClients();toast("Employer saved")}catch(x){toast(x.message)}});
+$("websiteProjectForm")?.addEventListener("submit",async e=>{e.preventDefault();await createWebsiteProject()});
 $("createLoginBtn").onclick=createEmployerLogin;
 $("statusPill").onclick=e=>{e.stopPropagation();$("statusPopover").classList.toggle("hidden")};
 $("hideStatusBtn").onclick=e=>{e.stopPropagation();sessionStorage.setItem("hideVaStatus","1");updateStatusDock()};

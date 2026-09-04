@@ -107,3 +107,12 @@ Adds an Admin Prompt Library and an Employer Website Project intake workspace. B
 ## v2.13 Multi Website Projects
 
 Run `V2.13-MULTI-WEBSITE-PROJECTS-PATCH.sql` after v2.12. Employers can then create multiple Website Projects, each with its own intake, notes, status, and assets. Admin Employer Details shows every project and provides Copy Full Intake per project. Existing v2.12 intake data is migrated automatically when possible; previous v2.12 website assets are preserved as legacy uploads.
+
+## v2.14.2 Admin Stability Hotfix
+This build restores all Admin navigation pages removed by the website-project refactor, fixes authenticated reload fallback caused by render errors, restores invoice rendering, adds guarded page routing, makes the logo return Home, replaces the native Website Project prompt with an in-app modal, and applies a mobile-first layout pass to the core Admin pages. No new SQL patch is required for v2.14.2 beyond the previously required v2.12–v2.14 feature migrations.
+
+## v2.15 Visual Experience Upgrade
+
+This build adds a coordinated Admin + Employer visual upgrade with data-driven dashboard graphics, lightweight CSS animations, task/work charts, project progress rings, and an upgraded mobile-first Employer portal. No new database migration is required for v2.15.
+
+See `V2.15-VISUAL-UPGRADE.md` for details.

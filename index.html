@@ -19,7 +19,7 @@
   #bootSplash{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 18% 14%,rgba(182,255,47,.16),transparent 26%),radial-gradient(circle at 82% 18%,rgba(58,181,255,.10),transparent 24%),linear-gradient(180deg,#04100a 0%,#07130d 55%,#07110c 100%);color:#eef5ef;z-index:2500;transition:opacity .35s ease,visibility .35s ease}
   body:not(.booting) #bootSplash{opacity:0;visibility:hidden;pointer-events:none}
 </style>
-  <link rel="stylesheet" href="styles.css?v=v2.14.1-employer-login-hotfix">
+  <link rel="stylesheet" href="styles.css?v=v2.15-visual-experience">
 </head>
 <body class="booting">
   <div class="ambient ambient-a" aria-hidden="true"></div>
@@ -52,7 +52,7 @@
   <div id="app" class="app hidden">
     <button id="mobileNavBackdrop" class="mobile-nav-backdrop hidden" type="button" aria-label="Close navigation"></button>
     <aside id="adminSidebar" class="sidebar" aria-label="Admin navigation">
-      <div class="brand"><img src="assets/jeffdesign101-logo.png"><div><strong>Jeffdesign101</strong><small>Design · Purpose · Impact</small></div></div>
+      <button type="button" class="brand brand-home" data-action="home" aria-label="Go to dashboard"><img src="assets/jeffdesign101-logo.png" alt="Jeffdesign101"><span><strong>Jeffdesign101</strong><small>Design · Purpose · Impact</small></span></button>
       <nav>
         <button data-admin-view="dashboard" class="nav-btn active">▦ <span>Dashboard</span></button>
         <button data-admin-view="clients" class="nav-btn">◎ <span>Employers</span></button>
@@ -66,7 +66,7 @@
       <div class="cloud-note"><i></i><div><strong>Cloud connected</strong><small>Saved to Supabase</small></div></div>
     </aside>
     <aside id="employerMobileNav" class="mobile-side-panel glass" aria-label="Employer navigation">
-      <div class="brand mobile-nav-brand"><img src="assets/jeffdesign101-logo.png"><div><strong>Jeffdesign101</strong><small>Employer Portal</small></div></div>
+      <button type="button" class="brand mobile-nav-brand brand-home" data-action="home" aria-label="Go to home"><img src="assets/jeffdesign101-logo.png" alt="Jeffdesign101"><span><strong>Jeffdesign101</strong><small>Employer Portal</small></span></button>
       <nav class="mobile-side-links">
         <button data-employer-view="overview" class="nav-btn active">◈ <span>Overview</span></button>
         <button data-employer-view="website" class="nav-btn">▧ <span>Website Projects</span></button>
@@ -175,6 +175,17 @@
     <div id="showcaseLightboxStage" class="showcase-lightbox-stage light-logo-bg"><img id="showcaseLightboxImage" alt="Website preview"></div>
   </div>
 
+
+  <div id="websiteProjectModal" class="modal-backdrop hidden">
+    <form id="websiteProjectForm" class="modal glass compact-modal">
+      <div class="modal-head"><div><small>NEW WEBSITE PROJECT</small><h3>Create Website Project</h3><p class="muted">Start a separate workspace for this website.</p></div><button type="button" data-close="websiteProjectModal" class="icon-btn">×</button></div>
+      <div class="field"><span>Website / Project Name *</span><input id="websiteProjectName" required maxlength="140" placeholder="e.g. BKM Elevations"></div>
+      <div class="field"><span>Project Type</span><select id="websiteProjectType"><option>Business Website</option><option>Landing Page</option><option>E-commerce Store</option><option>Portfolio</option><option>Website Redesign</option><option>Other</option></select></div>
+      <div class="field"><span>Short note (optional)</span><textarea id="websiteProjectNote" rows="3" placeholder="Anything important about this project…"></textarea></div>
+      <div class="modal-actions"><button type="button" data-close="websiteProjectModal" class="btn ghost">Cancel</button><button type="submit" class="btn primary">Create Project</button></div>
+    </form>
+  </div>
+
   <div id="invoiceModal" class="modal-backdrop hidden"><div class="modal invoice-modal"><div class="modal-head dark-head"><div><small>INVOICE PREVIEW</small><h3>Professional Invoice</h3></div><button data-close="invoiceModal" class="icon-btn">×</button></div><div id="invoiceModalBody"></div></div></div>
 
   <div id="statusDock" class="status-dock hidden">
@@ -211,7 +222,7 @@
 
   <script src="config.js?v=clean-v1"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=v2.14.1-employer-login-hotfix"></script>
+  <script src="app.js?v=v2.15-visual-experience"></script>
   <script src="pwa.js?v=v2.3"></script>
 </body>
 </html>
